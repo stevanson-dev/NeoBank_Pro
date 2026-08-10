@@ -1,9 +1,10 @@
 function BalanceCard({ title, amount, icon, color }) {
   return (
     <div
-      className={`rounded-2xl p-6 text-white shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl ${color}`}
+      className={` mb-3 rounded-2xl p-5 text-white shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl ${color}`}
     >
       <div className="flex items-center justify-between">
+        
         <div>
           <p className="text-sm text-gray-200">{title}</p>
 
@@ -11,6 +12,7 @@ function BalanceCard({ title, amount, icon, color }) {
             ₹{amount}
           </h2>
         </div>
+        
 
         <div className="text-5xl">
           {icon}

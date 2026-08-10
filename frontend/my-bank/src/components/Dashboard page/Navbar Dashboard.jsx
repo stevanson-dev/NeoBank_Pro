@@ -1,9 +1,11 @@
 import { MdNotifications } from "react-icons/md";
 import { FaSearch } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 function Navbar() {
+  const navigate = useNavigate();
   return (
-    <div className="flex items-center justify-between mb-8">
+    <div className="flex items-center justify-between ">
 
       {/* Left */}
       <div>
@@ -35,12 +37,17 @@ function Navbar() {
         </div>
 
         {/* Notification */}
-        <button className="rounded-xl bg-[#101827] p-3 text-white hover:bg-slate-800">
+        <button 
+         onClick={() => navigate("/notifications")}
+        className="rounded-xl bg-[#101827] p-3 text-white hover:bg-slate-800">
           <MdNotifications size={24} />
+          {/* Notification Badge */}
+          
         </button>
 
         {/* Profile */}
-        <div className="flex items-center gap-3 rounded-xl bg-[#101827] px-4 py-2 border border-slate-700">
+        <button  onClick={() => navigate("/profile")}
+         className="flex items-center gap-3 rounded-xl bg-[#101827] px-4 py-2 border border-slate-700">
 
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 font-bold text-white">
             S
@@ -55,12 +62,13 @@ function Navbar() {
               Premium User
             </p>
           </div>
-
+            </button>
         </div>
+        
 
       </div>
 
-    </div>
+   
   );
 }
 

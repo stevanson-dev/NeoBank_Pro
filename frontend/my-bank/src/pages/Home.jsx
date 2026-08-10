@@ -1,20 +1,29 @@
-import Navbar from "../components/Navbar";
-import Hero from "../components/Hero";
-import Features from "../components/Features";
-import Services from "../components/Services";
-import Stats from "../components/Stats";
-import Footer from "../components/Footer";
+import Navbar from "../components/Landing page/Navbar";
+import Hero from "../components/Landing page/Hero";
+import TrustStrip from "../components/Landing page/TrustStrip";
+import Features from "../components/Landing page/Features";
+import HowItWorks from "../components/Landing page/HowItWorks";
+import Security from "../components/Landing page/Security";
+import CTA from "../components/Landing page/CTA";
+import Footer from "../components/Landing page/Footer";
 
 export default function Home() {
   return (
-    <>
+    <div className="min-h-screen overflow-hidden bg-[#0B1220] text-[#F1F5F9]">
+
       <Navbar />
-      <Hero />
-      <Features />
-      <Services />
-      <Stats />
+
+      <main>
+        <Hero />
+        <TrustStrip />
+        <Features />
+        <HowItWorks />
+        <Security />
+        <CTA />
+      </main>
+
       <Footer />
-      
-    </>
+
+    </div>
   );
 }

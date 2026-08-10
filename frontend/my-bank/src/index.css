@@ -1,1 +1,17 @@
 @import "tailwindcss";
+    
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes drawTick {
+  from {
+    stroke-dasharray: 50;
+    stroke-dashoffset: 50;
+  }
+
+  to {
+    stroke-dasharray: 50;
+    stroke-dashoffset: 0;
+  }
+}

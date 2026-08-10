@@ -1,7 +1,13 @@
-import Sidebar  from "../components/Sidebar Dashboard";
-import Navbar from "../components/Navbar Dashboard";
-import BalanceCard from "../components/BalanceCard Dashboard";
-
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaSignOutAlt } from "react-icons/fa";
+import LogoutModal from "../components/LogoutModal";
+import Sidebar  from "../components/Dashboard page/Sidebar Dashboard";
+import Navbar from "../components/Dashboard page/Navbar Dashboard";
+import BalanceCard from "../components/Dashboard page/BalanceCard Dashboard";
+import QuickActions from "../components/Dashboard page/QuickActions Dashboard";
+import SpendingOverview from "../components/Dashboard page/SpendingOverview Dashboard";
+import RecentTransactions from "../components/Dashboard page/RecentTransactions Dashboard";
 
 
 import {
@@ -12,15 +18,22 @@ import {
 } from "react-icons/md";
 
 function Dashboard() {
-  return (
-    <div className="flex min-h-screen bg-[#070B1A]">
 
-      <Sidebar />
+  const navigate = useNavigate();
+
+  const [showLogout, setShowLogout] = useState(false);
+
+  
+  return (
+    <div className="flex min-h-screen bg-[#040f39]">
+
+      <Sidebar
+  onLogout={() => setShowLogout(true)}
+/>
 
       <div className="flex-1 p-8">
 
         <Navbar />
-
         {/* Balance Cards */}
         <div className="grid grid-cols-1 gap-6 mt-8 md:grid-cols-2 xl:grid-cols-4">
 
@@ -54,7 +67,29 @@ function Dashboard() {
            
         </div>
 
+
+        <div className="grid grid-cols-12 gap-6">
+
+  {/* Left Side */}
+  <div className="col-span-8 space-y-6">
+    <QuickActions />
+    <RecentTransactions />
+  </div>
+
+  {/* Right Side */}
+  <div className="col-span-4">
+    <SpendingOverview />
+  </div>
+
+</div>
       </div>
+
+{showLogout && (
+  <LogoutModal
+    close={() => setShowLogout(false)}
+    logout={() => navigate("/login")}
+  />
+)}
 
     </div>
   );
