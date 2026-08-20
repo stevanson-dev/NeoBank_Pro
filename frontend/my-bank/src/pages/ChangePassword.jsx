@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -10,6 +9,7 @@ import {
   FaCheckCircle,
 } from "react-icons/fa";
 
+import api from "../services/api";
 import GlassCard from "../components/Transfer Histroy Dash/GlassCard";
 
 export default function ChangePassword() {
@@ -25,64 +25,166 @@ export default function ChangePassword() {
     confirmPassword: "",
   });
 
-  const [error, setError] = useState("");
+  const [oldPasswordError, setOldPasswordError] = useState("");
+  const [newPasswordError, setNewPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
+
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
+  // Handle input changes
   const handleChange = (e) => {
-    setPasswords({
-      ...passwords,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
 
-    // User starts typing again → remove old error
-    setError("");
+    setPasswords((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    if (name === "oldPassword") {
+      setOldPasswordError("");
+    }
+
+    if (name === "newPassword") {
+      setNewPasswordError("");
+    }
+
+    if (name === "confirmPassword") {
+      setConfirmPasswordError("");
+    }
   };
 
-  const handleSubmit = (e) => {
+  // Submit
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const { oldPassword, newPassword, confirmPassword } = passwords;
+    // Clear previous errors
+    setOldPasswordError("");
+    setNewPasswordError("");
+    setConfirmPasswordError("");
+
+    const {
+      oldPassword,
+      newPassword,
+      confirmPassword,
+    } = passwords;
 
     // Current password validation
     if (!oldPassword.trim()) {
-      setError("Please enter your current password.");
+      setOldPasswordError(
+        "Please enter your current password."
+      );
       return;
     }
 
     // New password validation
     if (!newPassword.trim()) {
-      setError("Please enter a new password.");
+      setNewPasswordError(
+        "Please enter a new password."
+      );
       return;
     }
 
-    // Minimum password length
+    // New password length
     if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
-      return;
-    }
-
-    // Same password validation
-    if (oldPassword === newPassword) {
-      setError(
-        "New password must be different from your current password."
+      setNewPasswordError(
+        "New password must be at least 8 characters."
       );
       return;
     }
 
     // Confirm password validation
     if (!confirmPassword.trim()) {
-      setError("Please confirm your new password.");
+      setConfirmPasswordError(
+        "Please confirm your new password."
+      );
       return;
     }
 
+    // Password mismatch
     if (newPassword !== confirmPassword) {
-      setError("New password and confirm password do not match.");
+      setConfirmPasswordError(
+        "New password and confirm password do not match."
+      );
       return;
     }
 
-    // Everything is valid
-    setError("");
-    setSuccess(true);
+    // Same password
+    if (oldPassword === newPassword) {
+      setNewPasswordError(
+        "New password must be different from your current password."
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await api.put(
+        "/auth/change-password",
+        {
+          currentPassword: oldPassword,
+          newPassword: newPassword,
+        }
+      );
+
+      console.log("Status:", response.status);
+      console.log("Response:", response.data);
+
+      // Success
+      setSuccess(true);
+
+    } catch (error) {
+  console.log("Status:", error.response?.status);
+  console.log("Response:", error.response?.data);
+
+  const status = error.response?.status;
+  const message = error.response?.data?.message;
+
+  // Wrong current password
+  if (
+    message === "Current password is incorrect" ||
+    status === 403 ||
+    status === 401
+  ) {
+    setOldPasswordError("Current password is incorrect.");
+    return;
+  }
+
+  // New password same as current password
+  if (
+    message ===
+    "New password must be different from current password"
+  ) {
+    setNewPasswordError(
+      "New password must be different from your current password."
+    );
+    return;
+  }
+
+  // Validation error
+  if (status === 400) {
+    const errorMessage =
+      message || "Invalid password details.";
+
+    if (errorMessage.toLowerCase().includes("current")) {
+      setOldPasswordError(errorMessage);
+    } else if (errorMessage.toLowerCase().includes("new")) {
+      setNewPasswordError(errorMessage);
+    } else {
+      setConfirmPasswordError(errorMessage);
+    }
+
+    return;
+  }
+
+  // Other errors
+  setOldPasswordError(
+    "Unable to change password. Please try again."
+  );
+} finally {
+  setLoading(false);
+}
   };
 
   return (
@@ -103,6 +205,7 @@ export default function ChangePassword() {
           </button>
 
           <div>
+
             <h1 className="text-3xl font-bold">
               Change Password
             </h1>
@@ -110,20 +213,18 @@ export default function ChangePassword() {
             <p className="text-gray-400 mt-1">
               Update your account password securely
             </p>
+
           </div>
 
         </div>
 
       </div>
 
-
       {/* Main Content */}
 
       <div className="max-w-xl mx-auto px-6 mt-8 pb-10">
 
         {!success ? (
-
-          /* Change Password Form */
 
           <GlassCard className="p-8">
 
@@ -149,26 +250,38 @@ export default function ChangePassword() {
                     name="oldPassword"
                     value={passwords.oldPassword}
                     onChange={handleChange}
+                    disabled={loading}
                     className={`w-full bg-white/10 rounded-xl py-3 pl-11 pr-12 outline-none border ${
-                      error
-                        ? "border-white/10"
-                        : "border-white/10"
+                      oldPasswordError
+                        ? "border-red-500"
+                        : "border-white/10 focus:border-blue-500"
                     }`}
                     placeholder="Enter current password"
                   />
 
                   <button
                     type="button"
-                    onClick={() => setShowOld(!showOld)}
+                    onClick={() =>
+                      setShowOld(!showOld)
+                    }
                     className="absolute right-4 top-4 text-gray-400 hover:text-white"
                   >
-                    {showOld ? <FaEyeSlash /> : <FaEye />}
+                    {showOld ? (
+                      <FaEyeSlash />
+                    ) : (
+                      <FaEye />
+                    )}
                   </button>
 
                 </div>
 
-              </div>
+                {oldPasswordError && (
+                  <p className="mt-2 text-sm text-red-400">
+                    {oldPasswordError}
+                  </p>
+                )}
 
+              </div>
 
               {/* New Password */}
 
@@ -187,16 +300,27 @@ export default function ChangePassword() {
                     name="newPassword"
                     value={passwords.newPassword}
                     onChange={handleChange}
-                    className="w-full bg-white/10 rounded-xl py-3 pl-11 pr-12 outline-none border border-white/10"
+                    disabled={loading}
+                    className={`w-full bg-white/10 rounded-xl py-3 pl-11 pr-12 outline-none border ${
+                      newPasswordError
+                        ? "border-red-500"
+                        : "border-white/10 focus:border-blue-500"
+                    }`}
                     placeholder="Enter new password"
                   />
 
                   <button
                     type="button"
-                    onClick={() => setShowNew(!showNew)}
+                    onClick={() =>
+                      setShowNew(!showNew)
+                    }
                     className="absolute right-4 top-4 text-gray-400 hover:text-white"
                   >
-                    {showNew ? <FaEyeSlash /> : <FaEye />}
+                    {showNew ? (
+                      <FaEyeSlash />
+                    ) : (
+                      <FaEye />
+                    )}
                   </button>
 
                 </div>
@@ -205,8 +329,13 @@ export default function ChangePassword() {
                   Password must contain at least 8 characters.
                 </p>
 
-              </div>
+                {newPasswordError && (
+                  <p className="mt-2 text-sm text-red-400">
+                    {newPasswordError}
+                  </p>
+                )}
 
+              </div>
 
               {/* Confirm Password */}
 
@@ -225,39 +354,49 @@ export default function ChangePassword() {
                     name="confirmPassword"
                     value={passwords.confirmPassword}
                     onChange={handleChange}
-                    className="w-full bg-white/10 rounded-xl py-3 pl-11 pr-12 outline-none border border-white/10"
+                    disabled={loading}
+                    className={`w-full bg-white/10 rounded-xl py-3 pl-11 pr-12 outline-none border ${
+                      confirmPasswordError
+                        ? "border-red-500"
+                        : "border-white/10 focus:border-blue-500"
+                    }`}
                     placeholder="Confirm new password"
                   />
 
                   <button
                     type="button"
-                    onClick={() => setShowConfirm(!showConfirm)}
+                    onClick={() =>
+                      setShowConfirm(!showConfirm)
+                    }
                     className="absolute right-4 top-4 text-gray-400 hover:text-white"
                   >
-                    {showConfirm ? <FaEyeSlash /> : <FaEye />}
+                    {showConfirm ? (
+                      <FaEyeSlash />
+                    ) : (
+                      <FaEye />
+                    )}
                   </button>
 
                 </div>
 
+                {confirmPasswordError && (
+                  <p className="mt-2 text-sm text-red-400">
+                    {confirmPasswordError}
+                  </p>
+                )}
+
               </div>
-
-
-              {/* Error Message */}
-
-              {error && (
-                <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-red-400 text-sm">
-                  {error}
-                </div>
-              )}
-
 
               {/* Update Button */}
 
               <button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-semibold transition"
+                disabled={loading}
+                className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-semibold transition disabled:opacity-50"
               >
-                Update Password
+                {loading
+                  ? "Updating Password..."
+                  : "Update Password"}
               </button>
 
             </form>
@@ -271,7 +410,9 @@ export default function ChangePassword() {
           <GlassCard className="p-10 text-center">
 
             <div className="w-20 h-20 mx-auto rounded-full bg-green-500/10 text-green-400 flex items-center justify-center">
+
               <FaCheckCircle size={45} />
+
             </div>
 
             <h2 className="text-2xl font-bold mt-6">
@@ -299,4 +440,3 @@ export default function ChangePassword() {
     </div>
   );
 }
-

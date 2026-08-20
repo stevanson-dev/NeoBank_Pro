@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LogoutModal from "../components/LogoutModal";
@@ -12,6 +11,7 @@ import {
   FaDesktop,
   FaSun,
   FaSignOutAlt,
+  FaKey,
 } from "react-icons/fa";
 
 import GlassCard from "../components/Transfer Histroy Dash/GlassCard";
@@ -108,7 +108,7 @@ export default function Settings() {
           </GlassCard>
 
 
-          {/* Security */}
+          {/* Two Factor Authentication */}
           <GlassCard className="p-6">
 
             <div className="flex justify-between items-center">
@@ -144,7 +144,7 @@ export default function Settings() {
           </GlassCard>
 
 
-          {/* Password */}
+          {/* Change Password */}
           <GlassCard className="p-6">
 
             <div className="flex items-center justify-between">
@@ -173,6 +173,42 @@ export default function Settings() {
                 className="bg-white/10 hover:bg-white/20 border border-white/10 px-5 py-2 rounded-xl transition"
               >
                 Change
+              </button>
+
+            </div>
+
+          </GlassCard>
+
+
+          {/* PIN Security */}
+          <GlassCard className="p-6">
+
+            <div className="flex items-center justify-between">
+
+              <div className="flex items-center gap-4">
+
+                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-cyan-400">
+                  <FaKey />
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold">
+                    PIN Security
+                  </h2>
+
+                  <p className="text-gray-400">
+                    Set or change your transaction PIN
+                  </p>
+                </div>
+
+              </div>
+
+
+              <button
+                onClick={() => navigate("/pin-security")}
+                className="bg-white/10 hover:bg-white/20 border border-white/10 px-5 py-2 rounded-xl transition"
+              >
+                Manage
               </button>
 
             </div>
@@ -305,4 +341,3 @@ export default function Settings() {
     </div>
   );
 }
-

@@ -15,3 +15,29 @@ html {
     stroke-dashoffset: 0;
   }
 }
+
+/* Hide scrollbar but keep scrolling enabled */
+
+html {
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  scrollbar-width: none;
+}
+
+body::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}

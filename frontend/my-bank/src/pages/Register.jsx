@@ -1,17 +1,63 @@
-
 import { useState } from "react";
-import { Link ,  useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   IoEyeOutline,
   IoEyeOffOutline,
 } from "react-icons/io5";
 import Registerbg from "../assets/Create account bg.png";
+import api from "../services/api";
 
 function Register() {
   const navigate = useNavigate();
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+
+    setError("");
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (!agreeTerms) {
+      setError("Please agree to the Terms & Conditions");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await api.post("/auth/register", {
+        fullName,
+        email,
+        mobile,
+        password,
+      });
+
+      navigate("/Login");
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+          "Registration failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div
@@ -42,12 +88,15 @@ function Register() {
           Start your banking journey
         </p>
 
-        <form className="mt-8 space-y-4">
+        <form onSubmit={handleRegister} className="mt-8 space-y-4">
 
           {/* Full Name */}
           <input
             type="text"
             placeholder="Full Name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
             className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-gray-400 outline-none focus:border-blue-400 focus:bg-white/10 transition"
           />
 
@@ -55,6 +104,9 @@ function Register() {
           <input
             type="email"
             placeholder="Email Address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
             className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-gray-400 outline-none focus:border-blue-400 focus:bg-white/10 transition"
           />
 
@@ -62,6 +114,9 @@ function Register() {
           <input
             type="tel"
             placeholder="Phone Number"
+            value={mobile}
+            onChange={(e) => setMobile(e.target.value)}
+            required
             className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-gray-400 outline-none focus:border-blue-400 focus:bg-white/10 transition"
           />
 
@@ -70,6 +125,9 @@ function Register() {
             <input
               type={showPassword ? "text" : "password"}
               placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 pr-12 text-white placeholder:text-gray-400 outline-none focus:border-blue-400 focus:bg-white/10 transition"
             />
 
@@ -91,6 +149,9 @@ function Register() {
             <input
               type={showConfirmPassword ? "text" : "password"}
               placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 pr-12 text-white placeholder:text-gray-400 outline-none focus:border-blue-400 focus:bg-white/10 transition"
             />
 
@@ -107,17 +168,30 @@ function Register() {
             )}
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <p className="text-center text-sm text-red-400">
+              {error}
+            </p>
+          )}
+
           {/* Terms */}
           <label className="flex items-center gap-2 text-sm text-gray-400">
-            <input type="checkbox" />
+            <input
+              type="checkbox"
+              checked={agreeTerms}
+              onChange={(e) => setAgreeTerms(e.target.checked)}
+            />
             I agree to the Terms & Conditions
           </label>
 
           {/* Create Account */}
-          <button onClick={() => navigate("/dashboard")}
-            className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 transition"
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 transition disabled:opacity-50"
           >
-            Create Account
+            {loading ? "Creating Account..." : "Create Account"}
           </button>
 
         </form>

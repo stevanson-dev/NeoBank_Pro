@@ -1,13 +1,47 @@
-
 import { useState } from "react";
-import { Link , useNavigate} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FaGoogle, FaApple } from "react-icons/fa";
 import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 import Loginbg from "../assets/Login bg.png";
+import api from "../services/api";
 
 function Login() {
   const navigate = useNavigate();
+
   const [showPassword, setShowPassword] = useState(false);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await api.post("/auth/login", {
+        email,
+        password,
+      });
+
+      // Save JWT token
+      localStorage.setItem("token", response.data.token);
+
+      // Login successful
+      navigate("/dashboard");
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+          "Invalid email or password"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div
@@ -39,7 +73,7 @@ function Login() {
         </p>
 
         {/* Form */}
-        <form className="mt-8 space-y-5">
+        <form onSubmit={handleLogin} className="mt-8 space-y-5">
 
           {/* Email */}
           <div>
@@ -50,6 +84,9 @@ function Login() {
             <input
               type="email"
               placeholder="Steve@gmail.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-gray-400 outline-none focus:border-blue-400 focus:bg-white/10 transition"
             />
           </div>
@@ -65,6 +102,9 @@ function Login() {
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="********"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 pr-12 text-white placeholder:text-gray-400 outline-none focus:border-blue-400 focus:bg-white/10 transition"
               />
 
@@ -84,6 +124,13 @@ function Login() {
             </div>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <p className="text-center text-sm text-red-400">
+              {error}
+            </p>
+          )}
+
           {/* Remember + Forgot Password */}
           <div className="flex items-center justify-between text-sm">
 
@@ -102,10 +149,12 @@ function Login() {
           </div>
 
           {/* Login */}
-          <button onClick={() => navigate("/dashboard")}
-            className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700"
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
 
         </form>
@@ -127,6 +176,7 @@ function Login() {
         <div className="grid grid-cols-2 gap-4">
 
           <button
+            type="button"
             className="flex items-center justify-center gap-3 rounded-xl border border-slate-700 py-3 text-white transition hover:bg-slate-800"
           >
             <FaGoogle />
@@ -134,6 +184,7 @@ function Login() {
           </button>
 
           <button
+            type="button"
             className="flex items-center justify-center gap-3 rounded-xl border border-slate-700 py-3 text-white transition hover:bg-slate-800"
           >
             <FaApple />

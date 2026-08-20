@@ -2,13 +2,23 @@ import { MdNotifications } from "react-icons/md";
 import { FaSearch } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
-function Navbar() {
+function Navbar({ user }) {
+
   const navigate = useNavigate();
+
+  const fullName = user?.fullName || "User";
+
+  const firstLetter =
+    fullName.charAt(0).toUpperCase();
+
   return (
-    <div className="flex items-center justify-between ">
+
+    <div className="flex items-center justify-between">
 
       {/* Left */}
+
       <div>
+
         <h1 className="text-3xl font-bold text-white">
           Welcome Back 👋
         </h1>
@@ -16,12 +26,16 @@ function Navbar() {
         <p className="text-gray-400">
           Here's your banking overview.
         </p>
+
       </div>
 
+
       {/* Right */}
+
       <div className="flex items-center gap-4">
 
         {/* Search */}
+
         <div className="relative">
 
           <FaSearch
@@ -36,39 +50,54 @@ function Navbar() {
 
         </div>
 
+
         {/* Notification */}
-        <button 
-         onClick={() => navigate("/notifications")}
-        className="rounded-xl bg-[#101827] p-3 text-white hover:bg-slate-800">
+
+        <button
+          onClick={() =>
+            navigate("/notifications")
+          }
+          className="rounded-xl bg-[#101827] p-3 text-white hover:bg-slate-800"
+        >
+
           <MdNotifications size={24} />
-          {/* Notification Badge */}
-          
+
         </button>
 
+
         {/* Profile */}
-        <button  onClick={() => navigate("/profile")}
-         className="flex items-center gap-3 rounded-xl bg-[#101827] px-4 py-2 border border-slate-700">
+
+        <button
+          onClick={() =>
+            navigate("/profile")
+          }
+          className="flex items-center gap-3 rounded-xl bg-[#101827] px-4 py-2 border border-slate-700"
+        >
 
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 font-bold text-white">
-            S
+
+            {firstLetter}
+
           </div>
 
+
           <div>
+
             <h2 className="text-white font-semibold">
-              Stevanson
+              {fullName}
             </h2>
 
             <p className="text-xs text-gray-400">
               Premium User
             </p>
+
           </div>
-            </button>
-        </div>
-        
+
+        </button>
 
       </div>
 
-   
+    </div>
   );
 }
 

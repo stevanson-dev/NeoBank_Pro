@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   FaExchangeAlt,
   FaMoneyBillWave,
+  FaWallet,
   FaFileInvoiceDollar,
   FaQrcode,
 } from "react-icons/fa";
@@ -25,19 +26,25 @@ const actions = [
 
   {
     id: 3,
+    title: "Withdraw",
+    icon: <FaWallet/>,
+    path: "/withdraw",
+  },
+
+  {
+    id: 4,
     title: "Pay Bills",
     icon: <FaFileInvoiceDollar />,
     path: "/pay-bills",
   },
 
   {
-    id: 4,
+    id: 5,
     title: "QR Pay",
     icon: <FaQrcode />,
     path: "/qr-pay",
   },
 ];
-
 
 export default function QuickActions() {
 
@@ -57,7 +64,7 @@ export default function QuickActions() {
 
       {/* Buttons */}
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
 
         {actions.map((action) => (
 

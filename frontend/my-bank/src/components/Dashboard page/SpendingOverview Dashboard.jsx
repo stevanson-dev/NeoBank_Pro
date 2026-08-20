@@ -9,19 +9,122 @@ import { Doughnut } from "react-chartjs-2";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-export default function SpendingOverview() {
+export default function SpendingOverview({
+  transactions = [],
+}) {
+
+  // --------------------------------
+  // Get expense transactions
+  // --------------------------------
+
+  const expenseTransactions = transactions.filter(
+    (transaction) =>
+      transaction.type === "WITHDRAW" ||
+       transaction.type === "TRANSFER" ||
+      transaction.type === "BILL_PAYMENT"
+  );
+
+
+  // --------------------------------
+  // Category totals
+  // --------------------------------
+
+  const categoryTotals = {};
+
+  expenseTransactions.forEach((transaction) => {
+
+    let category =
+      transaction.category ||
+      transaction.categoryName ||
+      transaction.method ||
+      transaction.type;
+
+    // Fallback category names
+
+    if (transaction.type === "WITHDRAW") {
+      category = "Withdraw";
+    }
+
+    if (transaction.type === "TRANSFER") {
+      category = "Transfer";
+    }
+
+        if (transaction.type === "BILL_PAYMENT") {
+      category = "Pay Bills";
+    }
+
+    category =
+      category.charAt(0).toUpperCase() +
+      category.slice(1).toLowerCase();
+
+    const amount = Number(transaction.amount || 0);
+
+    categoryTotals[category] =
+      (categoryTotals[category] || 0) + amount;
+  });
+
+
+  // --------------------------------
+  // Convert object to array
+  // --------------------------------
+
+  const categories = Object.entries(categoryTotals)
+    .sort((a, b) => b[1] - a[1]);
+
+
+  // --------------------------------
+  // Total expense
+  // --------------------------------
+
+  const totalExpense = expenseTransactions.reduce(
+    (total, transaction) =>
+      total + Number(transaction.amount || 0),
+    0
+  );
+
+
+  // --------------------------------
+  // Top 5 categories
+  // --------------------------------
+
+  const topCategories = categories.slice(0, 5);
+
+
+  // --------------------------------
+  // Percentage calculation
+  // --------------------------------
+
+  const categoryData = topCategories.map(
+    ([name, amount]) => {
+
+      const percentage =
+        totalExpense > 0
+          ? Math.round((amount / totalExpense) * 100)
+          : 0;
+
+      return {
+        name,
+        amount,
+        percentage,
+      };
+    }
+  );
+
+
+  // --------------------------------
+  // Chart data
+  // --------------------------------
+
   const data = {
-    labels: [
-      "Food & Dining",
-      "Shopping",
-      "Bills",
-      "Transport",
-      "Others",
-    ],
+    labels: categoryData.map(
+      (item) => item.name
+    ),
 
     datasets: [
       {
-        data: [35, 25, 20, 10, 10],
+        data: categoryData.map(
+          (item) => item.amount
+        ),
 
         backgroundColor: [
           "#3B82F6",
@@ -36,6 +139,11 @@ export default function SpendingOverview() {
     ],
   };
 
+
+  // --------------------------------
+  // Chart options
+  // --------------------------------
+
   const options = {
     cutout: "70%",
 
@@ -43,13 +151,41 @@ export default function SpendingOverview() {
       legend: {
         display: false,
       },
+
+      tooltip: {
+        callbacks: {
+          label: function (context) {
+
+            const value =
+              Number(context.raw || 0);
+
+            return ` ₹${value.toLocaleString(
+              "en-IN"
+            )}`;
+          },
+        },
+      },
     },
   };
 
-  return (
-    <div className="bg-[#141B34] rounded-3xl  p-11 shadow-xl">
 
-      <h2 className="text-white text-xl  font-bold">
+  // --------------------------------
+  // Currency formatter
+  // --------------------------------
+
+  const formatCurrency = (amount) => {
+    return `₹${Number(amount || 0).toLocaleString(
+      "en-IN"
+    )}`;
+  };
+
+
+  return (
+    <div className="bg-[#141B34] rounded-3xl p-11 shadow-xl">
+
+      {/* Heading */}
+
+      <h2 className="text-white text-xl font-bold">
         Spending Overview
       </h2>
 
@@ -57,17 +193,37 @@ export default function SpendingOverview() {
         This Month
       </p>
 
+
+      {/* Chart */}
+
       <div className="w-60 mx-auto relative">
 
-        <Doughnut
-          data={data}
-          options={options}
-        />
+        {totalExpense > 0 ? (
 
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <Doughnut
+            data={data}
+            options={options}
+          />
+
+        ) : (
+
+          <div className="w-60 h-60 rounded-full `border-25` border-white/10 flex items-center justify-center">
+
+            <p className="text-gray-400 text-sm">
+              No expenses
+            </p>
+
+          </div>
+
+        )}
+
+
+        {/* Center Value */}
+
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
 
           <h2 className="text-3xl font-bold text-white">
-            $2,340
+            {formatCurrency(totalExpense)}
           </h2>
 
           <p className="text-gray-400">
@@ -78,57 +234,57 @@ export default function SpendingOverview() {
 
       </div>
 
+
+      {/* Category List */}
+
       <div className="mt-8 space-y-4">
 
-        <div className="flex justify-between">
-          <span className="text-blue-400">
-            ● Food & Dining
-          </span>
+        {categoryData.length === 0 ? (
 
-          <span className="text-white">
-            35%
-          </span>
-        </div>
+          <p className="text-center text-gray-400">
+            No spending data available.
+          </p>
 
-        <div className="flex justify-between">
-          <span className="text-purple-400">
-            ● Shopping
-          </span>
+        ) : (
 
-          <span className="text-white">
-            25%
-          </span>
-        </div>
+          categoryData.map(
+            (item, index) => (
 
-        <div className="flex justify-between">
-          <span className="text-orange-400">
-            ● Bills
-          </span>
+              <div
+                key={item.name}
+                className="flex justify-between items-center"
+              >
 
-          <span className="text-white">
-            20%
-          </span>
-        </div>
+                <span className="text-gray-300 flex items-center gap-2">
 
-        <div className="flex justify-between">
-          <span className="text-pink-400">
-            ● Transport
-          </span>
+                  <span
+                    className="text-lg"
+                    style={{
+                      color:
+                        data.datasets[0]
+                          .backgroundColor[index],
+                    }}
+                  >
+                    ●
+                  </span>
 
-          <span className="text-white">
-            10%
-          </span>
-        </div>
+                  {item.name}
 
-        <div className="flex justify-between">
-          <span className="text-yellow-400">
-            ● Others
-          </span>
+                </span>
 
-          <span className="text-white">
-            10%
-          </span>
-        </div>
+
+                <span className="text-white font-medium">
+
+                  {item.percentage}%
+
+                </span>
+
+              </div>
+
+            )
+          )
+
+        )}
 
       </div>
 

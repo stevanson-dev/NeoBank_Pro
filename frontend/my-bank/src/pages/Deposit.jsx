@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation  } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import {
   FaArrowLeft,
@@ -8,56 +8,85 @@ import {
   FaCheckCircle,
 } from "react-icons/fa";
 
-export default function Deposit() {
+import api from "../services/api";
 
+export default function Deposit() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("bank");
+
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   const [showSuccess, setShowSuccess] = useState(false);
   const [successAmount, setSuccessAmount] = useState("");
 
+  // ==========================================
+  // GET CURRENT USER
+  // ==========================================
 
- const handleDeposit = () => {
-  if (!amount || Number(amount) <= 0) {
-    alert("Please enter a valid amount.");
-    return;
-  }
+  const fetchUser = async () => {
+    try {
+      setLoading(true);
 
-  navigate("/transaction-pin?type=deposit", {
-    state: {
-      amount: amount,
-      method: method,
-    },
-  });
-};
+      const response = await api.get("/auth/me");
 
+      setUser(response.data);
+
+    } catch (error) {
+      console.error("Failed to load user:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-  if (location.state?.depositSuccess) {
+    fetchUser();
+  }, []);
 
-    // Processing page-லிருந்து வந்த amount
-    setSuccessAmount(location.state.amount);
+  // ==========================================
+  // DEPOSIT
+  // ==========================================
 
-    // Success modal open
-    setShowSuccess(true);
+  const handleDeposit = () => {
+    if (!amount || Number(amount) <= 0) {
+      alert("Please enter a valid amount.");
+      return;
+    }
 
-    // URL state clear
-    navigate("/deposit", {
-      replace: true,
-      state: {},
+    navigate("/transaction-pin?type=deposit", {
+      state: {
+        amount: amount,
+        method: method,
+      },
     });
-  }
-}, [location.state, navigate]);
+  };
 
+  // ==========================================
+  // SUCCESS
+  // ==========================================
+
+  useEffect(() => {
+    if (location.state?.depositSuccess) {
+
+      setSuccessAmount(location.state.amount);
+      setShowSuccess(true);
+
+      fetchUser();
+
+      navigate("/deposit", {
+        replace: true,
+        state: {},
+      });
+    }
+  }, [location.state]);
 
   return (
-
     <div className="min-h-screen bg-linear-to-br from-[#07162F] via-[#0A2245] to-[#102E5B] text-white">
 
-
-      {/* Header */}
+      {/* HEADER */}
 
       <div className="max-w-5xl mx-auto px-6 pt-8">
 
@@ -69,7 +98,6 @@ export default function Deposit() {
           >
             <FaArrowLeft />
           </button>
-
 
           <div>
 
@@ -87,16 +115,65 @@ export default function Deposit() {
 
       </div>
 
-
-
-      {/* Main */}
+      {/* MAIN */}
 
       <div className="max-w-5xl mx-auto px-6 py-10">
 
         <div className="max-w-2xl mx-auto bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-8">
 
+          {/* USER ACCOUNT */}
 
-          {/* Amount */}
+          <div className="mb-8">
+
+            <p className="text-gray-400 text-sm">
+              Money will be added to
+            </p>
+
+            {loading ? (
+
+              <div className="mt-3 h-20 rounded-2xl bg-white/5 animate-pulse" />
+
+            ) : (
+
+              <div className="mt-3 p-5 rounded-2xl bg-blue-600/10 border border-blue-500/20">
+
+                <div className="flex items-center gap-4">
+
+                  <div className="w-12 h-12 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center">
+
+                    <FaUniversity size={22} />
+
+                  </div>
+
+                  <div>
+
+                    <h3 className="font-semibold">
+                      {user?.fullName || "Your NeoBank Pro Account"}
+                    </h3>
+
+                    <p className="text-gray-400 text-sm mt-1">
+                      {user?.email || ""}
+                    </p>
+
+                    <p className="text-gray-500 text-xs mt-1">
+                      Current Balance: ₹
+                      {Number(user?.balance || 0).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            )}
+
+          </div>
+
+          {/* AMOUNT */}
 
           <div>
 
@@ -104,16 +181,15 @@ export default function Deposit() {
               Deposit Amount
             </label>
 
-
             <div className="relative mt-2">
 
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
                 ₹
               </span>
 
-
               <input
                 type="number"
+                min="1"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="Enter amount"
@@ -124,9 +200,7 @@ export default function Deposit() {
 
           </div>
 
-
-
-          {/* Payment Method */}
+          {/* METHOD */}
 
           <div className="mt-8">
 
@@ -135,15 +209,12 @@ export default function Deposit() {
             </h2>
 
             <p className="text-gray-400 text-sm mt-1">
-              Choose where the money will come from
+              Choose your deposit method
             </p>
-
-
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
 
-
-              {/* Bank */}
+              {/* BANK */}
 
               <button
                 onClick={() => setMethod("bank")}
@@ -162,15 +233,14 @@ export default function Deposit() {
 
                   </div>
 
-
                   <div>
 
                     <h3 className="font-semibold">
-                      Bank Account
+                      Bank Transfer
                     </h3>
 
                     <p className="text-gray-400 text-sm">
-                      **** **** 6789
+                      Add money from bank
                     </p>
 
                   </div>
@@ -179,15 +249,13 @@ export default function Deposit() {
 
               </button>
 
-
-
-              {/* Debit Card */}
+              {/* CARD */}
 
               <button
                 onClick={() => setMethod("card")}
                 className={`p-5 rounded-2xl border text-left transition ${
                   method === "card"
-                    ? "border-blue-500 bg-blue-600/20"
+                    ? "border-purple-500 bg-purple-600/20"
                     : "border-white/10 bg-white/5 hover:bg-white/10"
                 }`}
               >
@@ -200,7 +268,6 @@ export default function Deposit() {
 
                   </div>
 
-
                   <div>
 
                     <h3 className="font-semibold">
@@ -208,7 +275,7 @@ export default function Deposit() {
                     </h3>
 
                     <p className="text-gray-400 text-sm">
-                      **** 4521
+                      Add money using card
                     </p>
 
                   </div>
@@ -221,9 +288,7 @@ export default function Deposit() {
 
           </div>
 
-
-
-          {/* Summary */}
+          {/* SUMMARY */}
 
           <div className="mt-8 bg-white/5 rounded-2xl p-5">
 
@@ -239,7 +304,6 @@ export default function Deposit() {
 
             </div>
 
-
             <div className="flex justify-between mt-3">
 
               <span className="text-gray-400">
@@ -248,12 +312,11 @@ export default function Deposit() {
 
               <span className="font-semibold">
                 {method === "bank"
-                  ? "Bank Account"
+                  ? "Bank Transfer"
                   : "Debit Card"}
               </span>
 
             </div>
-
 
             <div className="border-t border-white/10 mt-4 pt-4 flex justify-between">
 
@@ -269,37 +332,29 @@ export default function Deposit() {
 
           </div>
 
-
-
-          {/* Deposit Button */}
+          {/* BUTTON */}
 
           <button
-              onClick={handleDeposit}
-
-            className="w-full mt-6 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 transition font-semibold text-lg"
+            onClick={handleDeposit}
+            disabled={loading}
+            className="w-full mt-6 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 transition font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Deposit Money
+            {loading ? "Loading..." : "Deposit Money"}
           </button>
-
 
         </div>
 
       </div>
 
-
-
-      {/* Success Modal */}
+      {/* SUCCESS */}
 
       {showSuccess && (
 
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
 
-
           <div className="absolute inset-0 bg-black/40 backdrop-blur-md" />
 
-
           <div className="relative w-full max-w-md bg-[#102E5B] border border-white/20 rounded-3xl p-8 text-center">
-
 
             <div className="w-16 h-16 mx-auto rounded-full bg-green-500/20 text-green-400 flex items-center justify-center">
 
@@ -307,16 +362,13 @@ export default function Deposit() {
 
             </div>
 
-
             <h2 className="text-2xl font-bold mt-5">
               Deposit Successful
             </h2>
 
-
             <p className="text-gray-400 mt-3">
               ₹{successAmount} has been added successfully.
             </p>
-
 
             <button
               onClick={() => navigate("/dashboard")}
@@ -332,6 +384,5 @@ export default function Deposit() {
       )}
 
     </div>
-
   );
 }
