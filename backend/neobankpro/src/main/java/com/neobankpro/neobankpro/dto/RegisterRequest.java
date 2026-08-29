@@ -8,7 +8,11 @@ import jakarta.validation.constraints.Size;
 public class RegisterRequest {
 
     @NotBlank(message = "Full name is required")
-    @Size(min = 3, max = 100, message = "Full name must be between 3 and 100 characters")
+    @Size(
+            min = 3,
+            max = 100,
+            message = "Full name must be between 3 and 100 characters"
+    )
     private String fullName;
 
     @NotBlank(message = "Email is required")
@@ -23,8 +27,14 @@ public class RegisterRequest {
     private String mobile;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 8, max = 100, message = "Password must be at least 8 characters")
+    @Size(
+            min = 8,
+            max = 100,
+            message = "Password must be at least 8 characters"
+    )
     private String password;
+
+    private String address;
 
     public RegisterRequest() {
     }
@@ -59,5 +69,13 @@ public class RegisterRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
     }
 }

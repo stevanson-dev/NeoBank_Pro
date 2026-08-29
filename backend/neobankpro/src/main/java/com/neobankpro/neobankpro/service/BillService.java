@@ -1,8 +1,10 @@
 package com.neobankpro.neobankpro.service;
 
 import com.neobankpro.neobankpro.dto.BillRequest;
+import com.neobankpro.neobankpro.entity.BankAccount;
 import com.neobankpro.neobankpro.entity.Transaction;
 import com.neobankpro.neobankpro.entity.User;
+import com.neobankpro.neobankpro.repository.BankAccountRepository;
 import com.neobankpro.neobankpro.repository.TransactionRepository;
 import com.neobankpro.neobankpro.repository.UserRepository;
 
@@ -16,15 +18,18 @@ import java.math.BigDecimal;
 public class BillService {
 
     private final UserRepository userRepository;
+    private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
 
     public BillService(
             UserRepository userRepository,
+            BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
             PasswordEncoder passwordEncoder) {
 
         this.userRepository = userRepository;
+        this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -44,10 +49,11 @@ public class BillService {
 
 
         // ========================================
-        // 2. CHECK TRANSACTION PIN EXISTS
+        // 2. CHECK TRANSACTION PIN
         // ========================================
 
-        if (user.getTransactionPin() == null) {
+        if (user.getTransactionPin() == null ||
+                user.getTransactionPin().isBlank()) {
 
             throw new IllegalStateException(
                     "Transaction PIN is not set. Please set your PIN first."
@@ -67,13 +73,11 @@ public class BillService {
             );
         }
 
-
         boolean pinCorrect =
                 passwordEncoder.matches(
                         request.getPin(),
                         user.getTransactionPin()
                 );
-
 
         if (!pinCorrect) {
 
@@ -84,11 +88,11 @@ public class BillService {
 
 
         // ========================================
-        // 4. VALIDATE BILL AMOUNT
+        // 4. VALIDATE AMOUNT
         // ========================================
 
         if (request.getAmount() == null ||
-                request.getAmount().signum() <= 0) {
+                request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
 
             throw new IllegalArgumentException(
                     "Invalid bill amount"
@@ -136,19 +140,36 @@ public class BillService {
 
 
         // ========================================
-        // 8. CHECK BALANCE
+        // 8. FIND PRIMARY BANK ACCOUNT
         // ========================================
 
-        BigDecimal balance = user.getBalance();
+        BankAccount account =
+                bankAccountRepository
+                        .findByUserAndPrimaryAccount(user, true)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Primary bank account not found"
+                                ));
 
-        if (balance == null) {
-            balance = BigDecimal.ZERO;
+
+        // ========================================
+        // 9. GET BANK ACCOUNT BALANCE
+        // ========================================
+
+        BigDecimal currentBalance =
+                account.getBalance();
+
+        if (currentBalance == null) {
+            currentBalance = BigDecimal.ZERO;
         }
 
 
-        if (balance.compareTo(
-                request.getAmount()
-        ) < 0) {
+        // ========================================
+        // 10. CHECK SUFFICIENT BALANCE
+        // ========================================
+
+        if (currentBalance.compareTo(
+                request.getAmount()) < 0) {
 
             throw new IllegalArgumentException(
                     "Insufficient balance"
@@ -157,45 +178,45 @@ public class BillService {
 
 
         // ========================================
-        // 9. DEDUCT BILL AMOUNT
+        // 11. DEDUCT BILL AMOUNT
         // ========================================
 
-        user.setBalance(
-                balance.subtract(
+        BigDecimal newBalance =
+                currentBalance.subtract(
                         request.getAmount()
-                )
-        );
+                );
+
+        account.setBalance(newBalance);
 
 
         // ========================================
-        // 10. SAVE UPDATED BALANCE
+        // 12. SAVE BANK ACCOUNT BALANCE
         // ========================================
 
-        userRepository.save(user);
+        bankAccountRepository.save(account);
 
 
         // ========================================
-        // 11. CREATE BILL TRANSACTION
+        // 13. CREATE BILL TRANSACTION
         // ========================================
 
-       Transaction transaction =
-        new Transaction(
-                user,
-                request.getAmount(),
-                "BILL_PAYMENT",
-                request.getProvider(),
-                "SUCCESS",
-                request.getCategory(),
-                request.getProvider(),
-                request.getAccountNumber()
-        );
+        Transaction transaction =
+                new Transaction(
+                        user,
+                        request.getAmount(),
+                        "BILL_PAYMENT",
+                        request.getProvider(),
+                        "SUCCESS",
+                        request.getCategory(),
+                        request.getProvider(),
+                        request.getAccountNumber()
+                );
+
 
         // ========================================
-        // 12. SAVE TRANSACTION
+        // 14. SAVE TRANSACTION
         // ========================================
 
-        return transactionRepository.save(
-                transaction
-        );
+        return transactionRepository.save(transaction);
     }
 }

@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -43,7 +44,6 @@ export default function TransactionHistory() {
 
   const transactionsPerPage = 5;
 
-
   // --------------------------------
   // Reset page when filter changes
   // --------------------------------
@@ -52,9 +52,8 @@ export default function TransactionHistory() {
     setCurrentPage(1);
   }, [search, category, status]);
 
-
   // --------------------------------
-  // Fetch transactions + balance
+  // Fetch transactions + BANK ACCOUNT
   // --------------------------------
 
   useEffect(() => {
@@ -65,10 +64,10 @@ export default function TransactionHistory() {
 
         const [
           transactionsResponse,
-          userResponse,
+          accountResponse,
         ] = await Promise.all([
           api.get("/transactions"),
-          api.get("/auth/me"),
+          api.get("/accounts/primary"),
         ]);
 
         setTransactions(
@@ -77,8 +76,9 @@ export default function TransactionHistory() {
             : []
         );
 
+        // BankAccount.balance
         setBalance(
-          userResponse.data?.balance || 0
+          Number(accountResponse.data?.balance || 0)
         );
 
       } catch (error) {
@@ -99,7 +99,6 @@ export default function TransactionHistory() {
     fetchData();
   }, []);
 
-
   // --------------------------------
   // Summary calculations
   // --------------------------------
@@ -107,10 +106,9 @@ export default function TransactionHistory() {
   const totalTransactions =
     transactions.length;
 
-
-  // ========================================
+  // --------------------------------
   // TOTAL INCOME
-  // ========================================
+  // --------------------------------
 
   const totalIncome = transactions
     .filter(
@@ -124,24 +122,23 @@ export default function TransactionHistory() {
       0
     );
 
-
-  // ========================================
+  // --------------------------------
   // TOTAL EXPENSE
-  // ========================================
+  // --------------------------------
 
   const totalExpense = transactions
     .filter(
       (transaction) =>
         transaction.type === "WITHDRAW" ||
         transaction.type === "TRANSFER" ||
-        transaction.type === "BILL_PAYMENT"
+        transaction.type === "BILL_PAYMENT" ||
+        transaction.type === "QR_PAYMENT"
     )
     .reduce(
       (total, transaction) =>
         total + Number(transaction.amount || 0),
       0
     );
-
 
   // --------------------------------
   // Filter transactions
@@ -151,27 +148,23 @@ export default function TransactionHistory() {
     transactions.filter(
       (transaction) => {
 
-        // ========================================
-        // SEARCH TEXT
-        // ========================================
-
         const searchText =
           search.toLowerCase().trim();
 
-
-        // ========================================
+        // --------------------------------
         // BILL DISPLAY TYPE
-        // ========================================
+        // --------------------------------
 
         const displayType =
           transaction.type === "BILL_PAYMENT"
             ? "bill payment"
+            : transaction.type === "QR_PAYMENT"
+            ? "qr payment"
             : transaction.type || "";
 
-
-        // ========================================
+        // --------------------------------
         // SEARCH FIELDS
-        // ========================================
+        // --------------------------------
 
         const searchableText = [
 
@@ -187,6 +180,8 @@ export default function TransactionHistory() {
 
           transaction.billAccountNumber,
 
+          transaction.upiId,
+
           transaction.status,
 
           String(
@@ -198,31 +193,27 @@ export default function TransactionHistory() {
           .join(" ")
           .toLowerCase();
 
-
         const matchesSearch =
           !searchText ||
           searchableText.includes(
             searchText
           );
 
-
-        // ========================================
+        // --------------------------------
         // CATEGORY FILTER
-        // ========================================
+        // --------------------------------
 
         const matchesCategory =
           category === "ALL" ||
           transaction.type === category;
 
-
-        // ========================================
+        // --------------------------------
         // STATUS FILTER
-        // ========================================
+        // --------------------------------
 
         const matchesStatus =
           status === "ALL" ||
           transaction.status === status;
-
 
         return (
           matchesSearch &&
@@ -232,9 +223,8 @@ export default function TransactionHistory() {
       }
     );
 
-
   // --------------------------------
-  // Pagination calculations
+  // Pagination
   // --------------------------------
 
   const totalPages =
@@ -243,18 +233,15 @@ export default function TransactionHistory() {
         transactionsPerPage
     );
 
-
   const startIndex =
     (currentPage - 1) *
     transactionsPerPage;
-
 
   const paginatedTransactions =
     filteredTransactions.slice(
       startIndex,
       startIndex + transactionsPerPage
     );
-
 
   // --------------------------------
   // Currency formatter
@@ -268,7 +255,6 @@ export default function TransactionHistory() {
 
   };
 
-
   // --------------------------------
   // Clear filters
   // --------------------------------
@@ -277,19 +263,16 @@ export default function TransactionHistory() {
 
     setSearch("");
     setCategory("ALL");
+    setStatus("");
+
     setStatus("ALL");
-
   };
-
 
   return (
 
     <div className="min-h-screen bg-linear-to-br from-[#07162F] via-[#0A2245] to-[#102E5B] text-white">
 
-
-      {/* ========================================
-          HEADER
-      ======================================== */}
+      {/* HEADER */}
 
       <div className="max-w-7xl mx-auto pb-8 px-6 pt-8">
 
@@ -303,7 +286,6 @@ export default function TransactionHistory() {
           >
             <FaArrowLeft />
           </button>
-
 
           <div>
 
@@ -321,10 +303,7 @@ export default function TransactionHistory() {
 
       </div>
 
-
-      {/* ========================================
-          SUMMARY CARDS
-      ======================================== */}
+      {/* SUMMARY CARDS */}
 
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
@@ -334,7 +313,6 @@ export default function TransactionHistory() {
           icon={<FaExchangeAlt />}
         />
 
-
         <SummaryCard
           title="Total Income"
           value={formatCurrency(totalIncome)}
@@ -342,14 +320,12 @@ export default function TransactionHistory() {
           color="text-green-400"
         />
 
-
         <SummaryCard
           title="Total Expense"
           value={formatCurrency(totalExpense)}
           icon={<FaArrowUp />}
           color="text-red-400"
         />
-
 
         <SummaryCard
           title="Balance"
@@ -360,15 +336,11 @@ export default function TransactionHistory() {
 
       </div>
 
-
-      {/* ========================================
-          TRANSACTION AREA
-      ======================================== */}
+      {/* TRANSACTION AREA */}
 
       <div className="max-w-7xl mx-auto px-6 mt-10">
 
         <GlassCard className="p-8">
-
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 
@@ -379,27 +351,23 @@ export default function TransactionHistory() {
               </h2>
 
               <p className="text-gray-400 text-sm mt-1">
+
                 {filteredTransactions.length} transaction
                 {filteredTransactions.length !== 1
                   ? "s"
                   : ""} found
+
               </p>
 
             </div>
 
           </div>
 
-
-          {/* ========================================
-              EXPORT
-          ======================================== */}
+          {/* EXPORT */}
 
           <ExportButtons />
 
-
-          {/* ========================================
-              FILTERS
-          ======================================== */}
+          {/* FILTERS */}
 
           <FilterBar
             search={search}
@@ -410,10 +378,7 @@ export default function TransactionHistory() {
             setStatus={setStatus}
           />
 
-
-          {/* ========================================
-              LOADING
-          ======================================== */}
+          {/* LOADING */}
 
           {loading && (
 
@@ -427,10 +392,7 @@ export default function TransactionHistory() {
 
           )}
 
-
-          {/* ========================================
-              ERROR
-          ======================================== */}
+          {/* ERROR */}
 
           {!loading && error && (
 
@@ -453,10 +415,7 @@ export default function TransactionHistory() {
 
           )}
 
-
-          {/* ========================================
-              NO RESULTS
-          ======================================== */}
+          {/* NO RESULTS */}
 
           {!loading &&
             !error &&
@@ -467,7 +426,6 @@ export default function TransactionHistory() {
                 <p className="text-gray-400">
                   No transactions found.
                 </p>
-
 
                 <button
                   onClick={clearFilters}
@@ -480,10 +438,7 @@ export default function TransactionHistory() {
 
             )}
 
-
-          {/* ========================================
-              TRANSACTION TABLE
-          ======================================== */}
+          {/* TRANSACTION TABLE */}
 
           {!loading &&
             !error &&
@@ -497,10 +452,7 @@ export default function TransactionHistory() {
 
             )}
 
-
-          {/* ========================================
-              PAGINATION
-          ======================================== */}
+          {/* PAGINATION */}
 
           {!loading &&
             !error &&

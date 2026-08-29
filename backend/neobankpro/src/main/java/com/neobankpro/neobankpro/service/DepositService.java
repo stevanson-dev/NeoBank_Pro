@@ -1,8 +1,10 @@
 package com.neobankpro.neobankpro.service;
 
 import com.neobankpro.neobankpro.dto.DepositRequest;
+import com.neobankpro.neobankpro.entity.BankAccount;
 import com.neobankpro.neobankpro.entity.Transaction;
 import com.neobankpro.neobankpro.entity.User;
+import com.neobankpro.neobankpro.repository.BankAccountRepository;
 import com.neobankpro.neobankpro.repository.TransactionRepository;
 import com.neobankpro.neobankpro.repository.UserRepository;
 
@@ -10,21 +12,25 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+
 import java.math.BigDecimal;
 
 @Service
 public class DepositService {
 
     private final UserRepository userRepository;
+    private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
 
     public DepositService(
             UserRepository userRepository,
+            BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
             PasswordEncoder passwordEncoder) {
 
         this.userRepository = userRepository;
+        this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -34,14 +40,18 @@ public class DepositService {
             String email,
             DepositRequest request) {
 
-        // Find logged-in user
+        // ==========================================
+        // 1. FIND USER
+        // ==========================================
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new RuntimeException("User not found"));
 
-        // =========================
-        // 1. CHECK TRANSACTION PIN
-        // =========================
+
+        // ==========================================
+        // 2. CHECK TRANSACTION PIN
+        // ==========================================
 
         if (user.getTransactionPin() == null ||
                 user.getTransactionPin().isBlank()) {
@@ -51,9 +61,10 @@ public class DepositService {
             );
         }
 
-        // =========================
-        // 2. VERIFY TRANSACTION PIN
-        // =========================
+
+        // ==========================================
+        // 3. VERIFY PIN
+        // ==========================================
 
         if (request.getPin() == null ||
                 request.getPin().isBlank()) {
@@ -76,43 +87,68 @@ public class DepositService {
             );
         }
 
-        // =========================
-        // 3. VALIDATE AMOUNT
-        // =========================
+
+        // ==========================================
+        // 4. VALIDATE AMOUNT
+        // ==========================================
 
         if (request.getAmount() == null ||
-                request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                request.getAmount()
+                        .compareTo(BigDecimal.ZERO) <= 0) {
 
             throw new IllegalArgumentException(
                     "Invalid deposit amount"
             );
         }
 
-        // =========================
-        // 4. GET CURRENT BALANCE
-        // =========================
 
-        BigDecimal currentBalance = user.getBalance();
+        // ==========================================
+        // 5. GET PRIMARY BANK ACCOUNT
+        // ==========================================
+
+       BankAccount account =
+        bankAccountRepository
+                .findByUserAndPrimaryAccount(user, true)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Primary bank account not found"
+                        ));
+
+
+        // ==========================================
+        // 6. GET BANK ACCOUNT BALANCE
+        // ==========================================
+
+        BigDecimal currentBalance =
+                account.getBalance();
 
         if (currentBalance == null) {
             currentBalance = BigDecimal.ZERO;
         }
 
-        // =========================
-        // 5. ADD DEPOSIT
-        // =========================
+
+        // ==========================================
+        // 7. ADD DEPOSIT
+        // ==========================================
 
         BigDecimal newBalance =
-                currentBalance.add(request.getAmount());
+                currentBalance.add(
+                        request.getAmount()
+                );
 
-        user.setBalance(newBalance);
+        account.setBalance(newBalance);
 
-        // Save updated user balance
-        userRepository.save(user);
 
-        // =========================
-        // 6. CREATE TRANSACTION
-        // =========================
+        // ==========================================
+        // 8. SAVE BANK ACCOUNT
+        // ==========================================
+
+        bankAccountRepository.save(account);
+
+
+        // ==========================================
+        // 9. CREATE TRANSACTION
+        // ==========================================
 
         Transaction transaction =
                 new Transaction(
@@ -123,7 +159,11 @@ public class DepositService {
                         "SUCCESS"
                 );
 
-        // Save transaction
+
+        // ==========================================
+        // 10. SAVE TRANSACTION
+        // ==========================================
+
         return transactionRepository.save(transaction);
     }
 }

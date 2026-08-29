@@ -1,8 +1,10 @@
 package com.neobankpro.neobankpro.service;
 
 import com.neobankpro.neobankpro.dto.WithdrawRequest;
+import com.neobankpro.neobankpro.entity.BankAccount;
 import com.neobankpro.neobankpro.entity.Transaction;
 import com.neobankpro.neobankpro.entity.User;
+import com.neobankpro.neobankpro.repository.BankAccountRepository;
 import com.neobankpro.neobankpro.repository.TransactionRepository;
 import com.neobankpro.neobankpro.repository.UserRepository;
 
@@ -16,15 +18,18 @@ import java.math.BigDecimal;
 public class WithdrawService {
 
     private final UserRepository userRepository;
+    private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
 
     public WithdrawService(
             UserRepository userRepository,
+            BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
             PasswordEncoder passwordEncoder) {
 
         this.userRepository = userRepository;
+        this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -34,14 +39,18 @@ public class WithdrawService {
             String email,
             WithdrawRequest request) {
 
-        // Find logged-in user
+        // ==========================================
+        // 1. FIND LOGGED-IN USER
+        // ==========================================
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new RuntimeException("User not found"));
 
-        // =========================
-        // 1. CHECK TRANSACTION PIN
-        // =========================
+
+        // ==========================================
+        // 2. CHECK TRANSACTION PIN
+        // ==========================================
 
         if (user.getTransactionPin() == null ||
                 user.getTransactionPin().isBlank()) {
@@ -51,9 +60,10 @@ public class WithdrawService {
             );
         }
 
-        // =========================
-        // 2. VERIFY TRANSACTION PIN
-        // =========================
+
+        // ==========================================
+        // 3. VERIFY TRANSACTION PIN
+        // ==========================================
 
         if (request.getPin() == null ||
                 request.getPin().isBlank()) {
@@ -76,9 +86,10 @@ public class WithdrawService {
             );
         }
 
-        // =========================
-        // 3. VALIDATE AMOUNT
-        // =========================
+
+        // ==========================================
+        // 4. VALIDATE AMOUNT
+        // ==========================================
 
         if (request.getAmount() == null ||
                 request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
@@ -88,42 +99,67 @@ public class WithdrawService {
             );
         }
 
-        // =========================
-        // 4. GET CURRENT BALANCE
-        // =========================
 
-        BigDecimal currentBalance = user.getBalance();
+        // ==========================================
+        // 5. FIND PRIMARY BANK ACCOUNT
+        // ==========================================
+
+        BankAccount account =
+                bankAccountRepository
+                        .findByUserAndPrimaryAccount(user, true)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Primary bank account not found"
+                                ));
+
+
+        // ==========================================
+        // 6. GET BANK ACCOUNT BALANCE
+        // ==========================================
+
+        BigDecimal currentBalance =
+                account.getBalance();
 
         if (currentBalance == null) {
             currentBalance = BigDecimal.ZERO;
         }
 
-        // =========================
-        // 5. CHECK SUFFICIENT BALANCE
-        // =========================
 
-        if (currentBalance.compareTo(request.getAmount()) < 0) {
+        // ==========================================
+        // 7. CHECK SUFFICIENT BALANCE
+        // ==========================================
+
+        if (currentBalance.compareTo(
+                request.getAmount()) < 0) {
 
             throw new IllegalArgumentException(
                     "Insufficient balance"
             );
         }
 
-        // =========================
-        // 6. SUBTRACT WITHDRAWAL
-        // =========================
+
+        // ==========================================
+        // 8. SUBTRACT FROM BANK ACCOUNT
+        // ==========================================
 
         BigDecimal newBalance =
-                currentBalance.subtract(request.getAmount());
+                currentBalance.subtract(
+                        request.getAmount()
+                );
 
-        user.setBalance(newBalance);
+        account.setBalance(newBalance);
 
-        // Save updated balance
-        userRepository.save(user);
 
-        // =========================
-        // 7. CREATE TRANSACTION
-        // =========================
+        // ==========================================
+        // 9. SAVE BANK ACCOUNT
+        // ==========================================
+
+        bankAccountRepository.save(account);
+
+
+        // ==========================================
+        // 10. CREATE TRANSACTION
+        // ==========================================
 
         Transaction transaction =
                 new Transaction(
@@ -134,7 +170,11 @@ public class WithdrawService {
                         "SUCCESS"
                 );
 
-        // Save transaction
+
+        // ==========================================
+        // 11. SAVE TRANSACTION
+        // ==========================================
+
         return transactionRepository.save(transaction);
     }
 }

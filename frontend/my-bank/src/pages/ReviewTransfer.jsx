@@ -15,25 +15,38 @@ export default function ReviewTransfer() {
 
   const [availableBalance, setAvailableBalance] = useState(0);
   const [balanceLoading, setBalanceLoading] = useState(true);
+  const [balanceError, setBalanceError] = useState("");
 
-  // ==========================================
-  // LOAD REAL BALANCE
-  // ==========================================
+  // ============================================================
+  // LOAD PRIMARY BANK ACCOUNT BALANCE
+  // BankAccount.balance is the SINGLE SOURCE OF TRUTH
+  // ============================================================
   useEffect(() => {
     const loadBalance = async () => {
       try {
         setBalanceLoading(true);
+        setBalanceError("");
 
-        const response = await api.get("/auth/me");
+        const response = await api.get("/accounts/primary");
 
-        const balance = Number(response.data?.balance ?? 0);
+        const account = response.data;
 
-        setAvailableBalance(
-          Number.isFinite(balance) ? balance : 0
-        );
+        const balance = Number(account?.balance ?? 0);
+
+        if (!Number.isFinite(balance)) {
+          throw new Error("Invalid account balance");
+        }
+
+        setAvailableBalance(balance);
       } catch (error) {
-        console.error("Failed to load balance:", error);
+        console.error("Failed to load primary account:", error);
+
         setAvailableBalance(0);
+
+        setBalanceError(
+          error?.response?.data?.message ||
+            "Unable to load your account balance."
+        );
       } finally {
         setBalanceLoading(false);
       }
@@ -42,13 +55,13 @@ export default function ReviewTransfer() {
     loadBalance();
   }, []);
 
-  // ==========================================
+  // ============================================================
   // DIRECT ACCESS PROTECTION
-  // ==========================================
+  // ============================================================
   if (!transferData) {
     return (
       <div className="min-h-screen bg-linear-to-br from-[#07162F] via-[#0A2245] to-[#102E5B] text-white flex items-center justify-center px-6">
-        <div className="text-center">
+        <div className="text-center max-w-md">
 
           <div className="w-16 h-16 mx-auto rounded-full bg-red-500/20 flex items-center justify-center text-red-400 text-2xl">
             !
@@ -74,6 +87,9 @@ export default function ReviewTransfer() {
     );
   }
 
+  // ============================================================
+  // TRANSFER DATA
+  // ============================================================
   const {
     amount,
     method,
@@ -91,63 +107,125 @@ export default function ReviewTransfer() {
   const remainingBalance =
     availableBalance - transferAmount;
 
-  // ==========================================
+  const hasEnoughBalance =
+    transferAmount > 0 &&
+    transferAmount <= availableBalance;
+
+  // ============================================================
   // CONFIRM TRANSFER
-  // ==========================================
+  // ============================================================
   const handleConfirm = () => {
+    // Balance still loading
     if (balanceLoading) {
-      alert("Please wait while your balance is being verified.");
+      alert(
+        "Please wait while your balance is being verified."
+      );
       return;
     }
 
+    // Balance API failed
+    if (balanceError) {
+      alert(
+        "Unable to verify your account balance. Please try again."
+      );
+      return;
+    }
+
+    // Invalid amount
     if (!transferAmount || transferAmount <= 0) {
       alert("Invalid transfer amount.");
       return;
     }
 
+    // Recipient validation
     if (!recipientName) {
       alert("Recipient details are missing.");
       return;
     }
 
-    // REAL BALANCE VALIDATION
-    if (transferAmount > availableBalance) {
+    // Account / UPI validation
+    if (!recipientAccount) {
       alert(
-        `Insufficient balance.\n\nAvailable Balance: ₹${availableBalance.toLocaleString(
-          "en-IN"
-        )}\nTransfer Amount: ₹${transferAmount.toLocaleString(
-          "en-IN"
-        )}`
+        method === "upi"
+          ? "Recipient UPI ID is missing."
+          : "Recipient account number is missing."
       );
       return;
     }
 
+    // Bank transfer IFSC validation
+    if (method === "bank" && !ifsc) {
+      alert("Recipient IFSC code is missing.");
+      return;
+    }
+
+    // REAL BANK ACCOUNT BALANCE VALIDATION
+    if (transferAmount > availableBalance) {
+      alert(
+        `Insufficient balance.\n\n` +
+          `Available Balance: ₹${availableBalance.toLocaleString(
+            "en-IN"
+          )}\n` +
+          `Transfer Amount: ₹${transferAmount.toLocaleString(
+            "en-IN"
+          )}`
+      );
+      return;
+    }
+
+    // ========================================================
+    // GO TO TRANSACTION PIN
+    // ========================================================
     navigate("/transaction-pin?type=transfer", {
       state: {
+        // Transfer amount
         amount: transferAmount,
+
+        // Transfer method
         method: method || "bank",
 
+        // Recipient details
         recipientName,
         recipientAccount,
         recipientBank,
         ifsc,
 
-        purpose,
-        notes,
-        saveBeneficiary,
+        // Additional details
+        purpose: purpose || "Personal",
+        notes: notes || "",
+        saveBeneficiary: Boolean(saveBeneficiary),
 
-        // Pass verified balance forward
+        // Current verified balance
         availableBalance,
+
+        // Remaining balance for UI
+        remainingBalance,
+
+        // Keep complete transfer data
+        transferData,
       },
     });
   };
 
+  // ============================================================
+  // FORMAT CURRENCY
+  // ============================================================
+  const formatCurrency = (value) => {
+    return `₹${Number(value || 0).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
+  // ============================================================
+  // UI
+  // ============================================================
   return (
     <div className="min-h-screen bg-linear-to-br from-[#07162F] via-[#0A2245] to-[#102E5B] text-white overflow-x-hidden">
 
-      {/* ==========================================
+      {/* ========================================================
           HEADER
-      ========================================== */}
+      ======================================================== */}
       <div className="max-w-6xl mx-auto px-6 py-6 flex items-center gap-4">
 
         <button
@@ -169,9 +247,9 @@ export default function ReviewTransfer() {
 
       </div>
 
-      {/* ==========================================
+      {/* ========================================================
           FROM ACCOUNT
-      ========================================== */}
+      ======================================================== */}
       <div className="max-w-6xl mx-auto px-6 mt-6">
 
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8">
@@ -188,7 +266,7 @@ export default function ReviewTransfer() {
               </h2>
 
               <p className="text-gray-400 mt-2">
-                Account •••• 4589
+                Primary Bank Account
               </p>
             </div>
 
@@ -198,6 +276,9 @@ export default function ReviewTransfer() {
 
           </div>
 
+          {/* ====================================================
+              BALANCE
+          ==================================================== */}
           <div className="mt-7 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* AVAILABLE BALANCE */}
@@ -211,13 +292,7 @@ export default function ReviewTransfer() {
 
                 {balanceLoading
                   ? "Loading..."
-                  : `₹${availableBalance.toLocaleString(
-                      "en-IN",
-                      {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      }
-                    )}`}
+                  : formatCurrency(availableBalance)}
 
               </h3>
 
@@ -239,20 +314,47 @@ export default function ReviewTransfer() {
               >
                 {balanceLoading
                   ? "Loading..."
-                  : `₹${Math.max(
-                      remainingBalance,
-                      0
-                    ).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}`}
+                  : formatCurrency(
+                      Math.max(remainingBalance, 0)
+                    )}
               </h3>
 
             </div>
 
           </div>
 
+          {/* ====================================================
+              BALANCE ERROR
+          ==================================================== */}
+          {balanceError && (
+            <div className="mt-6 bg-red-500/10 border border-red-400/30 rounded-2xl p-4">
+
+              <div className="flex items-center gap-3">
+
+                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-400">
+                  !
+                </div>
+
+                <div>
+                  <p className="font-semibold text-red-400">
+                    Unable to Verify Balance
+                  </p>
+
+                  <p className="text-sm text-gray-400 mt-1">
+                    {balanceError}
+                  </p>
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
+          {/* ====================================================
+              INSUFFICIENT BALANCE
+          ==================================================== */}
           {!balanceLoading &&
+            !balanceError &&
             transferAmount > availableBalance && (
               <div className="mt-6 bg-red-500/10 border border-red-400/30 rounded-2xl p-4">
 
@@ -269,11 +371,11 @@ export default function ReviewTransfer() {
                     </p>
 
                     <p className="text-sm text-gray-400 mt-1">
-                      You need ₹
-                      {(
+                      You need{" "}
+                      {formatCurrency(
                         transferAmount -
-                        availableBalance
-                      ).toLocaleString("en-IN")}{" "}
+                          availableBalance
+                      )}{" "}
                       more to complete this transfer.
                     </p>
 
@@ -284,8 +386,12 @@ export default function ReviewTransfer() {
               </div>
             )}
 
+          {/* ====================================================
+              ENOUGH BALANCE
+          ==================================================== */}
           {!balanceLoading &&
-            transferAmount <= availableBalance && (
+            !balanceError &&
+            hasEnoughBalance && (
               <div className="mt-6 bg-green-500/10 border border-green-400/30 rounded-2xl p-4">
 
                 <div className="flex items-center gap-3">
@@ -313,9 +419,9 @@ export default function ReviewTransfer() {
 
       </div>
 
-      {/* ==========================================
+      {/* ========================================================
           RECIPIENT
-      ========================================== */}
+      ======================================================== */}
       <div className="max-w-6xl mx-auto px-6 mt-8">
 
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8">
@@ -325,7 +431,8 @@ export default function ReviewTransfer() {
             <div className="flex items-center gap-5">
 
               <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold shrink-0">
-                {recipientName?.charAt(0)?.toUpperCase() || "U"}
+                {recipientName?.charAt(0)?.toUpperCase() ||
+                  "U"}
               </div>
 
               <div>
@@ -335,7 +442,7 @@ export default function ReviewTransfer() {
                 </p>
 
                 <h2 className="text-2xl font-bold mt-1">
-                  {recipientName}
+                  {recipientName || "-"}
                 </h2>
 
                 {recipientBank && (
@@ -349,11 +456,13 @@ export default function ReviewTransfer() {
             </div>
 
             <div className="bg-cyan-500/20 text-cyan-400 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap">
+
               {method === "upi"
                 ? "UPI Transfer"
                 : method === "card"
                 ? "Card Transfer"
                 : "Bank Transfer"}
+
             </div>
 
           </div>
@@ -399,9 +508,9 @@ export default function ReviewTransfer() {
 
       </div>
 
-      {/* ==========================================
+      {/* ========================================================
           TRANSFER DETAILS
-      ========================================== */}
+      ======================================================== */}
       <div className="max-w-6xl mx-auto px-6 mt-8">
 
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8">
@@ -418,7 +527,7 @@ export default function ReviewTransfer() {
               </span>
 
               <span className="font-semibold text-xl">
-                ₹{transferAmount.toLocaleString("en-IN")}
+                {formatCurrency(transferAmount)}
               </span>
             </div>
 
@@ -427,7 +536,7 @@ export default function ReviewTransfer() {
                 Transfer Fee
               </span>
 
-              <span>₹0</span>
+              <span>₹0.00</span>
             </div>
 
             <div className="flex justify-between items-center">
@@ -435,7 +544,7 @@ export default function ReviewTransfer() {
                 GST
               </span>
 
-              <span>₹0</span>
+              <span>₹0.00</span>
             </div>
 
             <div className="flex justify-between items-center">
@@ -472,9 +581,9 @@ export default function ReviewTransfer() {
 
       </div>
 
-      {/* ==========================================
+      {/* ========================================================
           NOTES
-      ========================================== */}
+      ======================================================== */}
       {notes && (
         <div className="max-w-6xl mx-auto px-6 mt-8">
 
@@ -484,7 +593,7 @@ export default function ReviewTransfer() {
               Notes
             </h2>
 
-            <p className="text-gray-300 leading-7 `wrap break-words` ">
+            <p className="text-gray-300 leading-7 break-words">
               {notes}
             </p>
 
@@ -493,9 +602,9 @@ export default function ReviewTransfer() {
         </div>
       )}
 
-      {/* ==========================================
+      {/* ========================================================
           PAYMENT SUMMARY
-      ========================================== */}
+      ======================================================== */}
       <div className="max-w-6xl mx-auto px-6 mt-8 mb-12">
 
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8">
@@ -512,7 +621,7 @@ export default function ReviewTransfer() {
               </span>
 
               <span>
-                ₹{transferAmount.toLocaleString("en-IN")}
+                {formatCurrency(transferAmount)}
               </span>
             </div>
 
@@ -521,7 +630,7 @@ export default function ReviewTransfer() {
                 Transfer Fee
               </span>
 
-              <span>₹0</span>
+              <span>₹0.00</span>
             </div>
 
             <div className="flex justify-between">
@@ -529,7 +638,7 @@ export default function ReviewTransfer() {
                 GST
               </span>
 
-              <span>₹0</span>
+              <span>₹0.00</span>
             </div>
 
             <hr className="border-white/20" />
@@ -539,14 +648,16 @@ export default function ReviewTransfer() {
               <span>Total</span>
 
               <span>
-                ₹{transferAmount.toLocaleString("en-IN")}
+                {formatCurrency(transferAmount)}
               </span>
 
             </div>
 
           </div>
 
-          {/* BUTTONS */}
+          {/* ====================================================
+              BUTTONS
+          ==================================================== */}
           <div className="grid grid-cols-2 gap-4 mt-8">
 
             <button
@@ -560,19 +671,29 @@ export default function ReviewTransfer() {
               onClick={handleConfirm}
               disabled={
                 balanceLoading ||
+                Boolean(balanceError) ||
                 transferAmount <= 0 ||
-                transferAmount > availableBalance
+                transferAmount > availableBalance ||
+                !recipientName ||
+                !recipientAccount ||
+                (method === "bank" && !ifsc)
               }
               className={`py-4 rounded-2xl font-semibold transition ${
                 balanceLoading ||
+                Boolean(balanceError) ||
                 transferAmount <= 0 ||
-                transferAmount > availableBalance
+                transferAmount > availableBalance ||
+                !recipientName ||
+                !recipientAccount ||
+                (method === "bank" && !ifsc)
                   ? "bg-gray-600/50 text-gray-400 cursor-not-allowed"
                   : "bg-linear-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
               }`}
             >
               {balanceLoading
                 ? "Checking Balance..."
+                : balanceError
+                ? "Balance Unavailable"
                 : transferAmount > availableBalance
                 ? "Insufficient Balance"
                 : "Confirm Transfer →"}

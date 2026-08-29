@@ -1,8 +1,10 @@
 package com.neobankpro.neobankpro.service;
 
 import com.neobankpro.neobankpro.dto.TransferRequest;
+import com.neobankpro.neobankpro.entity.BankAccount;
 import com.neobankpro.neobankpro.entity.Transaction;
 import com.neobankpro.neobankpro.entity.User;
+import com.neobankpro.neobankpro.repository.BankAccountRepository;
 import com.neobankpro.neobankpro.repository.TransactionRepository;
 import com.neobankpro.neobankpro.repository.UserRepository;
 
@@ -10,19 +12,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 @Service
 public class TransferService {
 
     private final UserRepository userRepository;
+    private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
 
     public TransferService(
             UserRepository userRepository,
+            BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
             PasswordEncoder passwordEncoder) {
 
         this.userRepository = userRepository;
+        this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -32,24 +39,44 @@ public class TransferService {
             String email,
             TransferRequest request) {
 
-        // 1. Find logged-in user
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+        // ==========================================
+        // 1. FIND SENDER
+        // ==========================================
 
-        // 2. Check transaction PIN exists
-        if (user.getTransactionPin() == null) {
+        User sender = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException("Sender not found"));
+
+
+        // ==========================================
+        // 2. CHECK TRANSACTION PIN
+        // ==========================================
+
+        if (sender.getTransactionPin() == null ||
+                sender.getTransactionPin().isBlank()) {
 
             throw new IllegalStateException(
                     "Transaction PIN is not set. Please set your PIN first."
             );
         }
 
-        // 3. Validate transaction PIN
+
+        // ==========================================
+        // 3. VALIDATE PIN
+        // ==========================================
+
+        if (request.getPin() == null ||
+                request.getPin().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Transaction PIN is required"
+            );
+        }
+
         boolean pinCorrect =
                 passwordEncoder.matches(
                         request.getPin(),
-                        user.getTransactionPin()
+                        sender.getTransactionPin()
                 );
 
         if (!pinCorrect) {
@@ -59,43 +86,172 @@ public class TransferService {
             );
         }
 
-        // 4. Validate amount
+
+        // ==========================================
+        // 4. VALIDATE AMOUNT
+        // ==========================================
+
         if (request.getAmount() == null ||
-                request.getAmount().signum() <= 0) {
+                request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
 
             throw new IllegalArgumentException(
                     "Invalid transfer amount"
             );
         }
 
-        // 5. Check balance
-        if (user.getBalance()
-                .compareTo(request.getAmount()) < 0) {
+
+        // ==========================================
+        // 5. VALIDATE RECIPIENT ACCOUNT
+        // ==========================================
+
+        if (request.getRecipientAccount() == null ||
+                request.getRecipientAccount().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Recipient account is required"
+            );
+        }
+
+        String recipientAccountNumber =
+                request.getRecipientAccount().trim();
+
+
+        // ==========================================
+        // 6. FIND SENDER PRIMARY ACCOUNT
+        // ==========================================
+
+        BankAccount senderAccount =
+                bankAccountRepository
+                        .findByUserAndPrimaryAccount(
+                                sender,
+                                true
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Sender primary bank account not found"
+                                ));
+
+
+        // ==========================================
+        // 7. FIND RECIPIENT ACCOUNT
+        // ==========================================
+
+        BankAccount recipientAccount =
+                bankAccountRepository
+                        .findByAccountNumber(
+                                recipientAccountNumber
+                        )
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Recipient bank account not found"
+                                ));
+
+
+        // ==========================================
+        // 8. PREVENT SELF TRANSFER
+        // ==========================================
+
+        if (senderAccount.getId()
+                .equals(recipientAccount.getId())) {
+
+            throw new IllegalArgumentException(
+                    "You cannot transfer money to your own account"
+            );
+        }
+
+
+        // ==========================================
+        // 9. CHECK SENDER BALANCE
+        // ==========================================
+
+        BigDecimal senderBalance =
+                senderAccount.getBalance();
+
+        if (senderBalance == null) {
+            senderBalance = BigDecimal.ZERO;
+        }
+
+        if (senderBalance.compareTo(
+                request.getAmount()) < 0) {
 
             throw new IllegalArgumentException(
                     "Insufficient balance"
             );
         }
 
-        // 6. Deduct amount
-        user.setBalance(
-                user.getBalance()
-                        .subtract(request.getAmount())
+
+        // ==========================================
+        // 10. GET RECIPIENT BALANCE
+        // ==========================================
+
+        BigDecimal recipientBalance =
+                recipientAccount.getBalance();
+
+        if (recipientBalance == null) {
+            recipientBalance = BigDecimal.ZERO;
+        }
+
+
+        // ==========================================
+        // 11. DEDUCT FROM SENDER
+        // ==========================================
+
+        senderAccount.setBalance(
+                senderBalance.subtract(
+                        request.getAmount()
+                )
         );
 
-        // 7. Save updated balance
-        userRepository.save(user);
 
-        // 8. Create transaction
-        Transaction transaction = new Transaction(
-                user,
-                request.getAmount(),
-                "TRANSFER",
-                request.getMethod(),
-                "SUCCESS"
+        // ==========================================
+        // 12. CREDIT RECIPIENT
+        // ==========================================
+
+        recipientAccount.setBalance(
+                recipientBalance.add(
+                        request.getAmount()
+                )
         );
 
-        // 9. Save transaction
+
+        // ==========================================
+        // 13. SAVE BOTH ACCOUNTS
+        // ==========================================
+
+        bankAccountRepository.save(senderAccount);
+        bankAccountRepository.save(recipientAccount);
+
+
+        // ==========================================
+        // 14. CREATE SENDER TRANSACTION
+        // ==========================================
+
+        Transaction transaction =
+                new Transaction(
+                        sender,
+                        request.getAmount(),
+                        "TRANSFER",
+                        request.getMethod(),
+                        "SUCCESS"
+                );
+
+        transaction.setRecipientName(
+                request.getRecipientName()
+        );
+
+        transaction.setRecipientAccount(
+                request.getRecipientAccount()
+        );
+
+        transaction.setRecipientBank(
+                request.getRecipientBank()
+        );
+
+
+        // ==========================================
+        // 15. SAVE TRANSACTION
+        // ==========================================
+
         return transactionRepository.save(transaction);
     }
 }

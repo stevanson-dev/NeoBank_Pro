@@ -1,5 +1,5 @@
 package com.neobankpro.neobankpro.entity;
-import java.math.BigDecimal;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -9,6 +9,10 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // ==========================================
+    // USER DETAILS
+    // ==========================================
 
     @Column(nullable = false)
     private String fullName;
@@ -22,21 +26,38 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false, precision = 15, scale = 2)
-    private BigDecimal balance = BigDecimal.ZERO;
+    @Column(nullable = true)
+    private String address;
+
+    // ==========================================
+    // TRANSACTION PIN
+    // ==========================================
 
     @Column(name = "transaction_pin")
     private String transactionPin;
 
+    // ==========================================
+    // CONSTRUCTOR
+    // ==========================================
+
     public User() {
     }
 
-    public User(String fullName, String email, String mobile, String password) {
+    public User(
+            String fullName,
+            String email,
+            String mobile,
+            String password) {
+
         this.fullName = fullName;
         this.email = email;
         this.mobile = mobile;
         this.password = password;
     }
+
+    // ==========================================
+    // ID
+    // ==========================================
 
     public Long getId() {
         return id;
@@ -46,6 +67,10 @@ public class User {
         this.id = id;
     }
 
+    // ==========================================
+    // FULL NAME
+    // ==========================================
+
     public String getFullName() {
         return fullName;
     }
@@ -53,6 +78,10 @@ public class User {
     public void setFullName(String fullName) {
         this.fullName = fullName;
     }
+
+    // ==========================================
+    // EMAIL
+    // ==========================================
 
     public String getEmail() {
         return email;
@@ -62,6 +91,10 @@ public class User {
         this.email = email;
     }
 
+    // ==========================================
+    // MOBILE
+    // ==========================================
+
     public String getMobile() {
         return mobile;
     }
@@ -69,6 +102,10 @@ public class User {
     public void setMobile(String mobile) {
         this.mobile = mobile;
     }
+
+    // ==========================================
+    // PASSWORD
+    // ==========================================
 
     public String getPassword() {
         return password;
@@ -78,20 +115,27 @@ public class User {
         this.password = password;
     }
 
-    public BigDecimal getBalance() {
-    return balance;
+    // ==========================================
+    // ADDRESS
+    // ==========================================
+
+    public String getAddress() {
+        return address;
     }
 
-    public void setBalance(BigDecimal balance) {
-    this.balance = balance;
+    public void setAddress(String address) {
+        this.address = address;
     }
+
+    // ==========================================
+    // TRANSACTION PIN
+    // ==========================================
 
     public String getTransactionPin() {
-    return transactionPin;
+        return transactionPin;
     }
 
     public void setTransactionPin(String transactionPin) {
-    this.transactionPin = transactionPin;
+        this.transactionPin = transactionPin;
     }
-    
 }

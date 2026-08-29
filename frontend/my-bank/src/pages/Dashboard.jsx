@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -24,6 +25,7 @@ function Dashboard() {
   const [showLogout, setShowLogout] = useState(false);
 
   const [user, setUser] = useState(null);
+  const [bankAccount, setBankAccount] = useState(null);
   const [transactions, setTransactions] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -33,14 +35,25 @@ function Dashboard() {
       try {
         setLoading(true);
 
-        const [userResponse, transactionsResponse] =
-          await Promise.all([
-            api.get("/auth/me"),
-            api.get("/transactions"),
-          ]);
+        const [
+          userResponse,
+          accountResponse,
+          transactionsResponse,
+        ] = await Promise.all([
+          api.get("/auth/me"),
+          api.get("/accounts/primary"),
+          api.get("/transactions"),
+        ]);
 
         setUser(userResponse.data);
-        setTransactions(transactionsResponse.data);
+
+        setBankAccount(accountResponse.data);
+
+        setTransactions(
+          Array.isArray(transactionsResponse.data)
+            ? transactionsResponse.data
+            : []
+        );
 
       } catch (error) {
         console.error(
@@ -100,7 +113,8 @@ function Dashboard() {
       (transaction) =>
         transaction.type === "WITHDRAW" ||
         transaction.type === "TRANSFER" ||
-        transaction.type === "BILL_PAYMENT"
+        transaction.type === "BILL_PAYMENT" ||
+        transaction.type === "QR_PAYMENT"
     )
     .reduce(
       (total, transaction) =>
@@ -109,13 +123,15 @@ function Dashboard() {
     );
 
   // --------------------------------
-  // Balance
+  // BANK ACCOUNT BALANCE
   // --------------------------------
 
-  const balance = Number(user?.balance || 0);
+  const balance = Number(
+    bankAccount?.balance || 0
+  );
 
   // --------------------------------
-  // Savings
+  // Total Savings
   // --------------------------------
 
   const totalSavings = balance;
@@ -125,7 +141,7 @@ function Dashboard() {
   // --------------------------------
 
   const formatCurrency = (amount) => {
-    return Number(amount).toLocaleString("en-IN", {
+    return Number(amount || 0).toLocaleString("en-IN", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
@@ -140,13 +156,11 @@ function Dashboard() {
         onLogout={() => setShowLogout(true)}
       />
 
-
       <div className="flex-1 p-8">
 
         {/* Navbar */}
 
         <Navbar user={user} />
-
 
         {/* Balance Cards */}
 
@@ -154,11 +168,14 @@ function Dashboard() {
 
           <BalanceCard
             title="Total Balance"
-            amount={loading ? "0.00" : formatCurrency(balance)}
+            amount={
+              loading
+                ? "0.00"
+                : formatCurrency(balance)
+            }
             icon={<MdAccountBalanceWallet />}
             color="bg-gradient-to-r from-blue-600 to-cyan-500"
           />
-
 
           <BalanceCard
             title="Monthly Income"
@@ -171,7 +188,6 @@ function Dashboard() {
             color="bg-gradient-to-r from-green-600 to-emerald-500"
           />
 
-
           <BalanceCard
             title="Monthly Expense"
             amount={
@@ -182,7 +198,6 @@ function Dashboard() {
             icon={<MdTrendingDown />}
             color="bg-gradient-to-r from-red-600 to-orange-500"
           />
-
 
           <BalanceCard
             title="Total Savings"
@@ -196,7 +211,6 @@ function Dashboard() {
           />
 
         </div>
-
 
         {/* Main Dashboard */}
 
@@ -214,7 +228,6 @@ function Dashboard() {
 
           </div>
 
-
           {/* Right Side */}
 
           <div className="col-span-4">
@@ -228,7 +241,6 @@ function Dashboard() {
         </div>
 
       </div>
-
 
       {/* Logout Modal */}
 

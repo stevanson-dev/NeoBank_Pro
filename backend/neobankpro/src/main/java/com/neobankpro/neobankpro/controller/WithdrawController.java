@@ -30,61 +30,18 @@ public class WithdrawController {
             Authentication authentication,
             @Valid @RequestBody WithdrawRequest request) {
 
-        try {
+        String email = authentication.getName();
 
-            // Get logged-in user's email
-            String email = authentication.getName();
+        Transaction transaction =
+                withdrawService.withdraw(email, request);
 
-            // Withdraw money from User.balance
-            Transaction transaction =
-                    withdrawService.withdraw(
-                            email,
-                            request
-                    );
-
-            // Return successful response
-            return ResponseEntity.ok(
-                    Map.of(
-                            "success", true,
-                            "message", "Withdrawal successful",
-                            "transactionId", transaction.getId(),
-                            "amount", transaction.getAmount(),
-                            "type", transaction.getType(),
-                            "method", transaction.getMethod(),
-                            "status", transaction.getStatus(),
-                            "balance", transaction.getUser().getBalance()
-                    )
-            );
-
-        } catch (IllegalArgumentException e) {
-
-            return ResponseEntity.badRequest()
-                    .body(
-                            Map.of(
-                                    "success", false,
-                                    "message", e.getMessage()
-                            )
-                    );
-
-        } catch (IllegalStateException e) {
-
-            return ResponseEntity.badRequest()
-                    .body(
-                            Map.of(
-                                    "success", false,
-                                    "message", e.getMessage()
-                            )
-                    );
-
-        } catch (RuntimeException e) {
-
-            return ResponseEntity.badRequest()
-                    .body(
-                            Map.of(
-                                    "success", false,
-                                    "message", e.getMessage()
-                            )
-                    );
-        }
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "message", "Withdrawal successful",
+                        "transactionId", transaction.getId(),
+                        "amount", transaction.getAmount()
+                )
+        );
     }
 }

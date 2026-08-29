@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+
 import { useNavigate, useLocation } from "react-router-dom";
+
 import api from "../services/api";
 
 import {
@@ -24,6 +26,15 @@ export default function PayBills() {
   const [accountNumber, setAccountNumber] = useState("");
   const [amount, setAmount] = useState("");
 
+  // ========================================
+  // BANK ACCOUNT
+  // ========================================
+  const [bankAccount, setBankAccount] = useState(null);
+  const [accountLoading, setAccountLoading] = useState(true);
+
+  // ========================================
+  // SUCCESS
+  // ========================================
   const [showSuccess, setShowSuccess] = useState(false);
   const [successAmount, setSuccessAmount] = useState("");
   const [successCategory, setSuccessCategory] = useState("");
@@ -31,19 +42,16 @@ export default function PayBills() {
   const [successAccountNumber, setSuccessAccountNumber] =
     useState("");
   const [paymentId, setPaymentId] = useState("");
-
   const [isProcessing, setIsProcessing] = useState(false);
 
   // ========================================
   // RECENT BILL PAYMENTS
   // ========================================
-
   const [recentBills, setRecentBills] = useState([]);
 
   // ========================================
   // BILL CATEGORIES
   // ========================================
-
   const categories = [
     {
       name: "Electricity",
@@ -78,25 +86,21 @@ export default function PayBills() {
   // ========================================
   // PROVIDERS
   // ========================================
-
   const providers = {
     Electricity: [
       "TANGEDCO",
       "BESCOM",
       "Adani Electricity",
     ],
-
     Water: [
       "Chennai Metro Water",
       "Bangalore Water Supply",
     ],
-
     Internet: [
       "Airtel Xstream",
       "JioFiber",
       "ACT Fibernet",
     ],
-
     Mobile: [
       "Airtel",
       "Jio",
@@ -107,7 +111,6 @@ export default function PayBills() {
   // ========================================
   // QUICK AMOUNTS
   // ========================================
-
   const quickAmounts = [
     299,
     499,
@@ -118,16 +121,13 @@ export default function PayBills() {
   // ========================================
   // CURRENT CATEGORY
   // ========================================
-
-  const currentCategory =
-    categories.find(
-      (item) => item.name === category
-    );
+  const currentCategory = categories.find(
+    (item) => item.name === category
+  );
 
   // ========================================
   // ACCOUNT LABEL
   // ========================================
-
   const getAccountLabel = () => {
     return (
       currentCategory?.accountLabel ||
@@ -138,7 +138,6 @@ export default function PayBills() {
   // ========================================
   // ACCOUNT PLACEHOLDER
   // ========================================
-
   const getAccountPlaceholder = () => {
     return (
       currentCategory?.placeholder ||
@@ -149,7 +148,6 @@ export default function PayBills() {
   // ========================================
   // CATEGORY CHANGE
   // ========================================
-
   const handleCategoryChange = (newCategory) => {
     setCategory(newCategory);
     setProvider("");
@@ -160,7 +158,6 @@ export default function PayBills() {
   // ========================================
   // ACCOUNT NUMBER CHANGE
   // ========================================
-
   const handleAccountNumberChange = (e) => {
     let value = e.target.value;
 
@@ -181,7 +178,6 @@ export default function PayBills() {
   // ========================================
   // AMOUNT CHANGE
   // ========================================
-
   const handleAmountChange = (e) => {
     const value = e.target.value;
 
@@ -194,9 +190,39 @@ export default function PayBills() {
   };
 
   // ========================================
+  // FETCH PRIMARY BANK ACCOUNT
+  // ========================================
+  const fetchBankAccount = async () => {
+    try {
+      setAccountLoading(true);
+
+      const response = await api.get(
+        "/accounts/primary"
+      );
+
+      setBankAccount(response.data);
+    } catch (error) {
+      console.error(
+        "Failed to fetch bank account:",
+        error
+      );
+
+      setBankAccount(null);
+    } finally {
+      setAccountLoading(false);
+    }
+  };
+
+  // ========================================
+  // LOAD BANK ACCOUNT
+  // ========================================
+  useEffect(() => {
+    fetchBankAccount();
+  }, []);
+
+  // ========================================
   // FORM VALIDATION
   // ========================================
-
   const validateForm = () => {
     if (!provider) {
       alert("Please select a provider.");
@@ -241,7 +267,6 @@ export default function PayBills() {
   // ========================================
   // PAY BILL
   // ========================================
-
   const handlePayBill = () => {
     if (!validateForm()) {
       return;
@@ -269,7 +294,6 @@ export default function PayBills() {
   // ========================================
   // FETCH RECENT BILL PAYMENTS
   // ========================================
-
   useEffect(() => {
     const fetchRecentBills = async () => {
       try {
@@ -286,7 +310,6 @@ export default function PayBills() {
             .slice(0, 3);
 
         setRecentBills(bills);
-
       } catch (error) {
         console.error(
           "Failed to fetch recent bill payments:",
@@ -296,11 +319,12 @@ export default function PayBills() {
     };
 
     fetchRecentBills();
+  }, []);
 
-    // ========================================
-    // BILL SUCCESS
-    // ========================================
-
+  // ========================================
+  // BILL SUCCESS
+  // ========================================
+  useEffect(() => {
     if (location.state?.billSuccess) {
       setSuccessAmount(
         location.state.amount || ""
@@ -320,12 +344,15 @@ export default function PayBills() {
 
       setPaymentId(
         location.state.paymentId ||
-        `BILL${Date.now()
-          .toString()
-          .slice(-8)}`
+          `BILL${Date.now()
+            .toString()
+            .slice(-8)}`
       );
 
       setShowSuccess(true);
+
+      // Refresh BankAccount balance
+      fetchBankAccount();
 
       navigate(
         "/pay-bills",
@@ -338,9 +365,8 @@ export default function PayBills() {
   }, [location.state, navigate]);
 
   // ========================================
-  // FORMAT ACCOUNT NUMBER
+  // FORMAT BILL ACCOUNT NUMBER
   // ========================================
-
   const formatAccountNumber = (value) => {
     if (!value) {
       return "Not provided";
@@ -361,9 +387,28 @@ export default function PayBills() {
   };
 
   // ========================================
+  // FORMAT BANK ACCOUNT NUMBER
+  // ========================================
+  const formatBankAccountNumber = (value) => {
+    if (!value) {
+      return "Account number unavailable";
+    }
+
+    const stringValue = String(value);
+
+    if (stringValue.length <= 8) {
+      return stringValue;
+    }
+
+    return `${stringValue.slice(
+      0,
+      4
+    )} **** ${stringValue.slice(-4)}`;
+  };
+
+  // ========================================
   // GET BILL ICON
   // ========================================
-
   const getBillIcon = (billCategory) => {
     if (billCategory === "Electricity") {
       return <FaBolt />;
@@ -385,18 +430,22 @@ export default function PayBills() {
   };
 
   // ========================================
+  // BANK ACCOUNT BALANCE
+  // ========================================
+  const currentBalance = Number(
+    bankAccount?.balance || 0
+  );
+
+  // ========================================
   // UI
   // ========================================
-
   return (
     <div className="min-h-screen bg-linear-to-br from-[#07162F] via-[#0A2245] to-[#102E5B] text-white">
 
       {/* ========================================
           HEADER
       ======================================== */}
-
       <div className="max-w-6xl mx-auto px-6 pt-8">
-
         <div className="flex items-center gap-4">
 
           <button
@@ -409,7 +458,6 @@ export default function PayBills() {
           </button>
 
           <div>
-
             <h1 className="text-3xl font-bold">
               Pay Bills
             </h1>
@@ -417,17 +465,14 @@ export default function PayBills() {
             <p className="text-gray-400 mt-1">
               Pay your bills quickly and securely
             </p>
-
           </div>
 
         </div>
-
       </div>
 
       {/* ========================================
           MAIN
       ======================================== */}
-
       <div className="max-w-6xl mx-auto px-6 py-10">
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -435,19 +480,16 @@ export default function PayBills() {
           {/* ========================================
               LEFT SECTION
           ======================================== */}
-
           <div className="lg:col-span-2 space-y-6">
 
             {/* ========================================
                 BILL FORM
             ======================================== */}
-
             <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-7">
 
               <div className="flex items-center justify-between">
 
                 <div>
-
                   <h2 className="text-xl font-bold">
                     Select Bill Category
                   </h2>
@@ -455,7 +497,6 @@ export default function PayBills() {
                   <p className="text-gray-400 text-sm mt-1">
                     Choose the type of bill you want to pay
                   </p>
-
                 </div>
 
                 <div className="hidden sm:flex items-center gap-2 text-green-400 text-sm">
@@ -468,11 +509,9 @@ export default function PayBills() {
               {/* ========================================
                   CATEGORIES
               ======================================== */}
-
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
 
                 {categories.map((item) => (
-
                   <button
                     key={item.name}
                     onClick={() =>
@@ -502,7 +541,6 @@ export default function PayBills() {
                     </p>
 
                   </button>
-
                 ))}
 
               </div>
@@ -510,7 +548,6 @@ export default function PayBills() {
               {/* ========================================
                   PROVIDER
               ======================================== */}
-
               <div className="mt-8">
 
                 <label className="text-gray-300 text-sm">
@@ -533,14 +570,12 @@ export default function PayBills() {
 
                   {providers[category].map(
                     (item) => (
-
                       <option
                         key={item}
                         value={item}
                       >
                         {item}
                       </option>
-
                     )
                   )}
 
@@ -551,7 +586,6 @@ export default function PayBills() {
               {/* ========================================
                   ACCOUNT NUMBER
               ======================================== */}
-
               <div className="mt-6">
 
                 <label className="text-gray-300 text-sm">
@@ -591,7 +625,6 @@ export default function PayBills() {
               {/* ========================================
                   AMOUNT
               ======================================== */}
-
               <div className="mt-6">
 
                 <label className="text-gray-300 text-sm">
@@ -619,12 +652,10 @@ export default function PayBills() {
                 </div>
 
                 {/* QUICK AMOUNTS */}
-
                 <div className="flex flex-wrap gap-2 mt-4">
 
                   {quickAmounts.map(
                     (quickAmount) => (
-
                       <button
                         key={quickAmount}
                         onClick={() =>
@@ -643,7 +674,6 @@ export default function PayBills() {
                       >
                         ₹{quickAmount}
                       </button>
-
                     )
                   )}
 
@@ -656,8 +686,7 @@ export default function PayBills() {
             {/* ========================================
                 SECURITY INFO
             ======================================== */}
-
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-12">
 
               <div className="flex gap-4">
 
@@ -687,15 +716,14 @@ export default function PayBills() {
           {/* ========================================
               RIGHT SECTION
           ======================================== */}
-
-          <div className="space-y-6">
+          <div className="space-y-5">
 
             {/* ========================================
                 PAYMENT SUMMARY
             ======================================== */}
-
             <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-7">
 
+              {/* SUMMARY HEADER */}
               <div className="flex items-center gap-3">
 
                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
@@ -716,10 +744,58 @@ export default function PayBills() {
 
               </div>
 
-              <div className="mt-7 space-y-5">
+              {/* ========================================
+                  CURRENT BALANCE SMALL BOX
+              ======================================== */}
+              <div className="mt-2">
+
+                <div className="rounded-2xl bg-white/5 border border-white/10 px-5 py-1 text-center">
+
+                  {/* CURRENT BALANCE LABEL */}
+                  <p className="text-xs text-gray-500 uppercase tracking-wider">
+                    Current Balance
+                  </p>
+
+                  {/* BALANCE */}
+                  {accountLoading ? (
+
+                    <div className="h-9 w-32 mx-auto mt-2 rounded-lg bg-white/10 animate-pulse" />
+
+                  ) : (
+
+                    <h2 className="text-3xl font-bold text-green-400 mt-1">
+                      ₹
+                      {currentBalance.toLocaleString(
+                        "en-IN",
+                        {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }
+                      )}
+                    </h2>
+
+                  )}
+
+                  {/* SMALL BANK ACCOUNT NUMBER */}
+                  {!accountLoading &&
+                    bankAccount?.accountNumber && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        {formatBankAccountNumber(
+                          bankAccount.accountNumber
+                        )}
+                      </p>
+                    )}
+
+                </div>
+
+              </div>
+
+              {/* ========================================
+                  SUMMARY DETAILS
+              ======================================== */}
+              <div className="mt-7 space-y-4">
 
                 {/* CATEGORY */}
-
                 <div className="flex justify-between items-start gap-4">
 
                   <span className="text-gray-400">
@@ -733,7 +809,6 @@ export default function PayBills() {
                 </div>
 
                 {/* PROVIDER */}
-
                 <div className="flex justify-between items-start gap-4">
 
                   <span className="text-gray-400">
@@ -748,7 +823,6 @@ export default function PayBills() {
                 </div>
 
                 {/* ACCOUNT */}
-
                 <div className="flex justify-between items-start gap-4">
 
                   <span className="text-gray-400">
@@ -764,7 +838,6 @@ export default function PayBills() {
                 </div>
 
                 {/* AMOUNT */}
-
                 <div className="flex justify-between items-center">
 
                   <span className="text-gray-400">
@@ -778,7 +851,6 @@ export default function PayBills() {
                 </div>
 
                 {/* TOTAL */}
-
                 <div className="border-t border-white/10 pt-5 flex justify-between items-center">
 
                   <span className="font-semibold">
@@ -793,8 +865,9 @@ export default function PayBills() {
 
               </div>
 
-              {/* PAY BUTTON */}
-
+              {/* ========================================
+                  PAY BUTTON
+              ======================================== */}
               <button
                 onClick={handlePayBill}
                 disabled={isProcessing}
@@ -804,9 +877,11 @@ export default function PayBills() {
                     : "bg-blue-600 hover:bg-blue-700"
                 }`}
               >
+
                 {isProcessing
                   ? "Opening Secure Verification..."
                   : "Pay Bill"}
+
               </button>
 
               <p className="text-center text-xs text-gray-500 mt-4">
@@ -818,7 +893,6 @@ export default function PayBills() {
             {/* ========================================
                 RECENT BILL PAYMENTS
             ======================================== */}
-
             <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-6">
 
               <div className="flex items-center gap-3">
@@ -919,25 +993,17 @@ export default function PayBills() {
       {/* ========================================
           SUCCESS MODAL
       ======================================== */}
-
       {showSuccess && (
 
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
 
-          {/* BACKGROUND */}
-
           <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
-
-          {/* MODAL */}
 
           <div className="relative w-full max-w-md bg-[#102E5B] border border-white/20 rounded-3xl p-8">
 
             {/* SUCCESS ICON */}
-
             <div className="w-16 h-16 mx-auto rounded-full bg-green-500/20 text-green-400 flex items-center justify-center">
-
               <FaCheckCircle size={34} />
-
             </div>
 
             <h2 className="text-2xl font-bold mt-5 text-center">
@@ -949,11 +1015,9 @@ export default function PayBills() {
             </p>
 
             {/* PAYMENT DETAILS */}
-
             <div className="mt-7 bg-white/5 rounded-2xl p-5 space-y-4">
 
               {/* AMOUNT */}
-
               <div className="flex justify-between gap-4">
 
                 <span className="text-gray-400">
@@ -967,7 +1031,6 @@ export default function PayBills() {
               </div>
 
               {/* CATEGORY */}
-
               <div className="flex justify-between gap-4">
 
                 <span className="text-gray-400">
@@ -981,7 +1044,6 @@ export default function PayBills() {
               </div>
 
               {/* PROVIDER */}
-
               <div className="flex justify-between gap-4">
 
                 <span className="text-gray-400">
@@ -995,7 +1057,6 @@ export default function PayBills() {
               </div>
 
               {/* ACCOUNT */}
-
               <div className="flex justify-between gap-4">
 
                 <span className="text-gray-400">
@@ -1010,7 +1071,6 @@ export default function PayBills() {
               </div>
 
               {/* PAYMENT ID */}
-
               <div className="border-t border-white/10 pt-4 flex justify-between gap-4">
 
                 <span className="text-gray-400">
@@ -1026,7 +1086,6 @@ export default function PayBills() {
             </div>
 
             {/* BACK TO DASHBOARD */}
-
             <button
               onClick={() =>
                 navigate("/dashboard")
@@ -1037,17 +1096,13 @@ export default function PayBills() {
             </button>
 
             {/* PAY ANOTHER BILL */}
-
             <button
               onClick={() => {
-
                 setShowSuccess(false);
-
                 setCategory("Electricity");
                 setProvider("");
                 setAccountNumber("");
                 setAmount("");
-
               }}
               className="w-full mt-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition text-sm"
             >

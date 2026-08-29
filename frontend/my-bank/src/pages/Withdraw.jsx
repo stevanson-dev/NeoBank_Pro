@@ -15,36 +15,74 @@ export default function Withdraw() {
   const location = useLocation();
 
   const [amount, setAmount] = useState("");
+
+  // ==========================================
+  // USER - NAME / EMAIL ONLY
+  // ==========================================
+
   const [user, setUser] = useState(null);
-  const [balance, setBalance] = useState(0);
+
+  // ==========================================
+  // BANK ACCOUNT
+  // SINGLE SOURCE OF TRUTH FOR BALANCE
+  // ==========================================
+
+  const [bankAccount, setBankAccount] = useState(null);
+
   const [loading, setLoading] = useState(true);
+
+  // ==========================================
+  // SUCCESS
+  // ==========================================
 
   const [showSuccess, setShowSuccess] = useState(false);
   const [successAmount, setSuccessAmount] = useState("");
 
   // ==========================================
-  // GET CURRENT USER + BALANCE
+  // GET USER + PRIMARY BANK ACCOUNT
   // ==========================================
 
-  const fetchUser = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
 
-      const response = await api.get("/auth/me");
+      const [userResponse, accountResponse] =
+        await Promise.all([
+          api.get("/auth/me"),
+          api.get("/accounts/primary"),
+        ]);
 
-      setUser(response.data);
-      setBalance(Number(response.data.balance || 0));
+      // User is only used for name and email
+      setUser(userResponse.data);
+
+      // BankAccount is the balance source
+      setBankAccount(accountResponse.data);
 
     } catch (error) {
-      console.error("Failed to fetch user:", error);
+      console.error(
+        "Failed to fetch withdraw data:",
+        error
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // ==========================================
+  // INITIAL LOAD
+  // ==========================================
+
   useEffect(() => {
-    fetchUser();
+    fetchData();
   }, []);
+
+  // ==========================================
+  // BANK ACCOUNT BALANCE
+  // ==========================================
+
+  const balance = Number(
+    bankAccount?.balance || 0
+  );
 
   // ==========================================
   // WITHDRAW
@@ -53,16 +91,27 @@ export default function Withdraw() {
   const handleWithdraw = () => {
     const withdrawAmount = Number(amount);
 
+    // Validate amount
     if (!amount || withdrawAmount <= 0) {
       alert("Please enter a valid amount.");
       return;
     }
 
+    // Check BankAccount balance
     if (withdrawAmount > balance) {
-      alert("Insufficient balance.");
+      alert(
+        `Insufficient balance.\nAvailable Balance: ₹${balance.toLocaleString(
+          "en-IN",
+          {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }
+        )}`
+      );
       return;
     }
 
+    // Go to Transaction PIN
     navigate("/transaction-pin?type=withdraw", {
       state: {
         amount: amount,
@@ -77,17 +126,26 @@ export default function Withdraw() {
 
   useEffect(() => {
     if (location.state?.withdrawSuccess) {
-      setSuccessAmount(location.state.amount);
+      setSuccessAmount(
+        location.state.amount || ""
+      );
+
       setShowSuccess(true);
 
-      fetchUser();
+      // Refresh BankAccount balance
+      fetchData();
 
+      // Clear navigation state
       navigate("/withdraw", {
         replace: true,
         state: {},
       });
     }
   }, [location.state]);
+
+  // ==========================================
+  // UI
+  // ==========================================
 
   return (
     <div className="min-h-screen bg-linear-to-br from-[#07162F] via-[#0A2245] to-[#102E5B] text-white">
@@ -132,7 +190,7 @@ export default function Withdraw() {
         <div className="max-w-2xl mx-auto bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-8">
 
           {/* ==========================================
-              ACCOUNT HOLDER - CENTERED
+              ACCOUNT HOLDER
           ========================================== */}
 
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6 text-center">
@@ -184,7 +242,7 @@ export default function Withdraw() {
           </div>
 
           {/* ==========================================
-              BALANCE
+              BANK ACCOUNT BALANCE
           ========================================== */}
 
           <div className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center">
@@ -193,15 +251,27 @@ export default function Withdraw() {
               Available Balance
             </p>
 
-            <h2 className="text-3xl font-bold mt-2">
+            {loading ? (
 
-              ₹
-              {balance.toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              <div className="flex justify-center mt-3">
 
-            </h2>
+                <div className="h-9 w-40 bg-white/10 rounded animate-pulse" />
+
+              </div>
+
+            ) : (
+
+              <h2 className="text-3xl font-bold mt-2">
+
+                ₹
+                {balance.toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+
+              </h2>
+
+            )}
 
           </div>
 
@@ -225,7 +295,9 @@ export default function Withdraw() {
                 type="number"
                 min="1"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) =>
+                  setAmount(e.target.value)
+                }
                 placeholder="Enter amount"
                 className="w-full bg-white/10 border border-white/10 rounded-xl pl-10 pr-4 py-4 text-xl outline-none focus:border-blue-500"
               />
@@ -268,6 +340,22 @@ export default function Withdraw() {
 
             </div>
 
+            <div className="flex justify-between mt-3">
+
+              <span className="text-gray-400">
+                Available Balance
+              </span>
+
+              <span className="font-semibold">
+                ₹
+                {balance.toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+
+            </div>
+
             <div className="border-t border-white/10 mt-4 pt-4 flex justify-between">
 
               <span className="font-semibold">
@@ -288,11 +376,13 @@ export default function Withdraw() {
 
           <button
             onClick={handleWithdraw}
-            disabled={loading}
+            disabled={loading || !bankAccount}
             className="w-full mt-6 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 transition font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
 
-            {loading ? "Loading..." : "Withdraw Money"}
+            {loading
+              ? "Loading..."
+              : "Withdraw Money"}
 
           </button>
 
@@ -327,7 +417,9 @@ export default function Withdraw() {
             </p>
 
             <button
-              onClick={() => navigate("/dashboard")}
+              onClick={() =>
+                navigate("/dashboard")
+              }
               className="w-full mt-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition font-semibold"
             >
               Back to Dashboard

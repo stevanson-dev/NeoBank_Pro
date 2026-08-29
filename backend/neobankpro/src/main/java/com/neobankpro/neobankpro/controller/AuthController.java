@@ -16,7 +16,6 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -46,7 +45,6 @@ public class AuthController {
                         user.getFullName(),
                         user.getEmail(),
                         user.getMobile(),
-                        user.getBalance(),
                         user.getTransactionPin() != null
                 );
 
@@ -54,7 +52,6 @@ public class AuthController {
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
-
 
     // ========================================
     // LOGIN
@@ -69,7 +66,6 @@ public class AuthController {
 
         return ResponseEntity.ok(response);
     }
-
 
     // ========================================
     // GET CURRENT LOGGED-IN USER
@@ -90,13 +86,11 @@ public class AuthController {
                         user.getFullName(),
                         user.getEmail(),
                         user.getMobile(),
-                        user.getBalance(),
                         user.getTransactionPin() != null
                 );
 
         return ResponseEntity.ok(response);
     }
-
 
     // ========================================
     // UPDATE PROFILE
@@ -122,13 +116,11 @@ public class AuthController {
                         user.getFullName(),
                         user.getEmail(),
                         user.getMobile(),
-                        user.getBalance(),
                         user.getTransactionPin() != null
                 );
 
         return ResponseEntity.ok(response);
     }
-
 
     // ========================================
     // CHANGE PASSWORD

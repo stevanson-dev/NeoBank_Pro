@@ -15,6 +15,8 @@ public class UpdateProfileRequest {
     @NotBlank(message = "Mobile number is required")
     private String mobile;
 
+    private String address;
+
     public UpdateProfileRequest() {
     }
 
@@ -40,5 +42,13 @@ public class UpdateProfileRequest {
 
     public void setMobile(String mobile) {
         this.mobile = mobile;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
     }
 }

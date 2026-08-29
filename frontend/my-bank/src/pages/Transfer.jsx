@@ -105,8 +105,8 @@ export default function Transfer() {
   const [updatingBeneficiary, setUpdatingBeneficiary] =
     useState(false);
 
-    const [editSuccess, setEditSuccess] =
-  useState(false);
+  const [editSuccess, setEditSuccess] =
+    useState(false);
 
   // DELETE
 
@@ -175,6 +175,10 @@ export default function Transfer() {
   // --------------------------------------------------
   // LOAD REAL BALANCE
   // --------------------------------------------------
+  // IMPORTANT:
+  // BankAccount.balance is the single source of truth.
+  // Do NOT use /auth/me balance here.
+  // --------------------------------------------------
 
   const loadBalance = async () => {
 
@@ -183,7 +187,7 @@ export default function Transfer() {
       setLoadingBalance(true);
 
       const response =
-        await api.get("/auth/me");
+        await api.get("/accounts/primary");
 
       setAvailableBalance(
         Number(
@@ -784,164 +788,220 @@ export default function Transfer() {
   // UPDATE BENEFICIARY
   // --------------------------------------------------
 
-  // --------------------------------------------------
-// UPDATE BENEFICIARY
-// --------------------------------------------------
+  const handleUpdateBeneficiary =
+    async (e) => {
 
-const handleUpdateBeneficiary = async (e) => {
+      e.preventDefault();
 
-  e.preventDefault();
+      if (!editingBeneficiary) {
+        return;
+      }
 
-  if (!editingBeneficiary) {
-    return;
-  }
+      const name =
+        editingBeneficiary.name?.trim();
 
-  const name =
-    editingBeneficiary.name?.trim();
+      const bankName =
+        editingBeneficiary.bankName?.trim();
 
-  const bankName =
-    editingBeneficiary.bankName?.trim();
+      const accountNumber =
+        editingBeneficiary.accountNumber?.trim();
 
-  const accountNumber =
-    editingBeneficiary.accountNumber?.trim();
+      const beneficiaryIfsc =
+        editingBeneficiary.ifsc
+          ?.trim()
+          .toUpperCase();
 
-  const beneficiaryIfsc =
-    editingBeneficiary.ifsc
-      ?.trim()
-      .toUpperCase();
+      const accountType =
+        editingBeneficiary.accountType?.trim();
 
-  const accountType =
-    editingBeneficiary.accountType?.trim();
+      const upiId =
+        editingBeneficiary.upiId?.trim();
 
-  const upiId =
-    editingBeneficiary.upiId?.trim();
+      // -----------------------------
+      // VALIDATION
+      // -----------------------------
 
-  // -----------------------------
-  // VALIDATION
-  // -----------------------------
+      if (!name) {
 
-  if (!name) {
-    alert("Recipient name is required.");
-    return;
-  }
+        alert(
+          "Recipient name is required."
+        );
 
-  if (!accountNumber) {
-    alert("Account number is required.");
-    return;
-  }
+        return;
+      }
 
-  if (!/^\d{9,18}$/.test(accountNumber)) {
-    alert("Invalid account number.");
-    return;
-  }
+      if (!accountNumber) {
 
-  if (!bankName) {
-    alert("Bank name is required.");
-    return;
-  }
+        alert(
+          "Account number is required."
+        );
 
-  if (!beneficiaryIfsc) {
-    alert("IFSC code is required.");
-    return;
-  }
+        return;
+      }
 
-  if (
-    !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
-      beneficiaryIfsc
-    )
-  ) {
-    alert("Invalid IFSC code.");
-    return;
-  }
+      if (
+        !/^\d{9,18}$/.test(
+          accountNumber
+        )
+      ) {
 
-  if (
-    upiId &&
-    !/^[\w.-]+@[\w.-]+$/.test(upiId)
-  ) {
-    alert("Invalid UPI ID.");
-    return;
-  }
+        alert(
+          "Invalid account number."
+        );
 
-  // -----------------------------
-  // DATA TO BACKEND
-  // -----------------------------
+        return;
+      }
 
-  const updatedData = {
-    name,
-    bankName,
-    accountNumber,
-    ifsc: beneficiaryIfsc,
-    accountType: accountType || "Savings",
-    upiId: upiId || null,
-  };
+      if (!bankName) {
 
-  try {
+        alert(
+          "Bank name is required."
+        );
 
-    setUpdatingBeneficiary(true);
+        return;
+      }
 
-    const response = await api.put(
-      `/beneficiaries/${editingBeneficiary.id}`,
-      updatedData
-    );
+      if (!beneficiaryIfsc) {
 
-    const updated = response.data;
+        alert(
+          "IFSC code is required."
+        );
 
-    // -----------------------------
-    // UPDATE FRONTEND LIST
-    // -----------------------------
+        return;
+      }
 
-    setBeneficiaries((prev) =>
-      prev.map((beneficiary) =>
-        beneficiary.id === updated.id
-          ? updated
-          : beneficiary
-      )
-    );
+      if (
+        !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
+          beneficiaryIfsc
+        )
+      ) {
 
-    // -----------------------------
-    // UPDATE SELECTED BENEFICIARY
-    // -----------------------------
+        alert(
+          "Invalid IFSC code."
+        );
 
-    if (
-      selectedBeneficiary === updated.id
-    ) {
-      handleBeneficiarySelect(updated);
-    }
+        return;
+      }
 
-    // -----------------------------
-    // CLOSE EDIT MODAL
-    // -----------------------------
+      if (
+        upiId &&
+        !/^[\w.-]+@[\w.-]+$/.test(
+          upiId
+        )
+      ) {
 
-    setEditingBeneficiary(null);
+        alert(
+          "Invalid UPI ID."
+        );
 
-    // -----------------------------
-    // SHOW SUCCESS MESSAGE
-    // -----------------------------
+        return;
+      }
 
-    setEditSuccess(true);
+      // -----------------------------
+      // DATA TO BACKEND
+      // -----------------------------
 
-  } catch (error) {
+      const updatedData = {
 
-    console.error(
-      "Failed to update beneficiary:",
-      error
-    );
+        name,
 
-    const message =
-      error.response?.data ||
-      "Unable to update beneficiary.";
+        bankName,
 
-    alert(
-      typeof message === "string"
-        ? message
-        : "Unable to update beneficiary."
-    );
+        accountNumber,
 
-  } finally {
+        ifsc:
+          beneficiaryIfsc,
 
-    setUpdatingBeneficiary(false);
-  }
-};
+        accountType:
+          accountType || "Savings",
+
+        upiId:
+          upiId || null,
+      };
+
+      try {
+
+        setUpdatingBeneficiary(
+          true
+        );
+
+        const response =
+          await api.put(
+            `/beneficiaries/${editingBeneficiary.id}`,
+            updatedData
+          );
+
+        const updated =
+          response.data;
+
+        // -----------------------------
+        // UPDATE FRONTEND LIST
+        // -----------------------------
+
+        setBeneficiaries(
+          (prev) =>
+            prev.map(
+              (beneficiary) =>
+                beneficiary.id ===
+                updated.id
+                  ? updated
+                  : beneficiary
+            )
+        );
+
+        // -----------------------------
+        // UPDATE SELECTED BENEFICIARY
+        // -----------------------------
+
+        if (
+          selectedBeneficiary ===
+          updated.id
+        ) {
+
+          handleBeneficiarySelect(
+            updated
+          );
+        }
+
+        // -----------------------------
+        // CLOSE EDIT MODAL
+        // -----------------------------
+
+        setEditingBeneficiary(
+          null
+        );
+
+        // -----------------------------
+        // SHOW SUCCESS
+        // -----------------------------
+
+        setEditSuccess(true);
+
+      } catch (error) {
+
+        console.error(
+          "Failed to update beneficiary:",
+          error
+        );
+
+        const message =
+          error.response?.data ||
+          "Unable to update beneficiary.";
+
+        alert(
+          typeof message === "string"
+            ? message
+            : "Unable to update beneficiary."
+        );
+
+      } finally {
+
+        setUpdatingBeneficiary(
+          false
+        );
+      }
+    };
+
   // --------------------------------------------------
   // OPEN DELETE CONFIRMATION
   // --------------------------------------------------
@@ -1130,7 +1190,7 @@ const handleUpdateBeneficiary = async (e) => {
 
                 {money
                   ? loadingBalance
-                    ? "Loading..."
+                    
                     : `₹${availableBalance.toLocaleString(
                         "en-IN",
                         {
@@ -1138,7 +1198,7 @@ const handleUpdateBeneficiary = async (e) => {
                           maximumFractionDigits: 2,
                         }
                       )}`
-                  : "₹********"}
+                 }
 
               </h2>
 
@@ -1148,21 +1208,7 @@ const handleUpdateBeneficiary = async (e) => {
 
             </div>
 
-            <button
-              onClick={() =>
-                setMoney(!money)
-              }
-              className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
-            >
-
-              {money ? (
-                <FaEyeSlash />
-              ) : (
-                <FaEye size={18} />
-              )}
-
-            </button>
-
+            
           </div>
 
         </div>
@@ -2978,55 +3024,44 @@ const handleUpdateBeneficiary = async (e) => {
         </div>
       )}
 
-
       {/* ==============================================
-    EDIT SUCCESS MODAL
-============================================== */}
+          EDIT SUCCESS MODAL
+      ============================================== */}
 
-{editSuccess && (
+      {editSuccess && (
 
-  <div className="fixed inset-0 z-110 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-110 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
 
-    <div className="w-full max-w-md bg-[#0A2245] border border-white/20 rounded-3xl shadow-2xl p-8">
+          <div className="w-full max-w-md bg-[#0A2245] border border-white/20 rounded-3xl shadow-2xl p-8">
 
-      {/* SUCCESS ICON */}
+            <div className="w-16 h-16 mx-auto rounded-full bg-green-500/20 flex items-center justify-center">
 
-      <div className="w-16 h-16 mx-auto rounded-full bg-green-500/20 flex items-center justify-center">
+              <FaCheckCircle className="text-green-400 text-3xl" />
 
-        <FaCheckCircle className="text-green-400 text-3xl" />
+            </div>
 
-      </div>
+            <h2 className="text-2xl font-bold text-center mt-5">
+              Updated Successfully
+            </h2>
 
-      {/* TITLE */}
+            <p className="text-gray-400 text-center mt-3">
+              Beneficiary details have been updated successfully.
+            </p>
 
-      <h2 className="text-2xl font-bold text-center mt-5">
-        Updated Successfully
-      </h2>
+            <button
+              type="button"
+              onClick={() =>
+                setEditSuccess(false)
+              }
+              className="w-full mt-7 bg-blue-600 hover:bg-blue-700 rounded-xl py-3 font-semibold transition"
+            >
+              OK
+            </button>
 
-      {/* MESSAGE */}
+          </div>
 
-      <p className="text-gray-400 text-center mt-3">
-        Beneficiary details have been updated successfully.
-      </p>
-
-      {/* BUTTON */}
-
-      <button
-        type="button"
-        onClick={() => 
-               setEditSuccess(false)
-        }
-        className="w-full mt-7 bg-blue-600 hover:bg-blue-700 rounded-xl py-3 font-semibold transition"
-      >
-        OK
-      </button>
-
-    </div>
-
-  </div>
-
-)}
-
+        </div>
+      )}
 
       {/* ==============================================
           DELETE SUCCESS MODAL

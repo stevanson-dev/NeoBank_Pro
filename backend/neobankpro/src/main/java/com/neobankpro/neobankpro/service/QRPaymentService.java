@@ -1,8 +1,10 @@
 package com.neobankpro.neobankpro.service;
 
 import com.neobankpro.neobankpro.dto.QRPaymentRequest;
+import com.neobankpro.neobankpro.entity.BankAccount;
 import com.neobankpro.neobankpro.entity.Transaction;
 import com.neobankpro.neobankpro.entity.User;
+import com.neobankpro.neobankpro.repository.BankAccountRepository;
 import com.neobankpro.neobankpro.repository.TransactionRepository;
 import com.neobankpro.neobankpro.repository.UserRepository;
 
@@ -10,19 +12,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 @Service
 public class QRPaymentService {
 
     private final UserRepository userRepository;
+    private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
 
     public QRPaymentService(
             UserRepository userRepository,
+            BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
             PasswordEncoder passwordEncoder) {
 
         this.userRepository = userRepository;
+        this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -66,7 +73,6 @@ public class QRPaymentService {
             );
         }
 
-
         String upiId =
                 request.getUpiId().trim();
 
@@ -102,7 +108,7 @@ public class QRPaymentService {
         // ========================================
 
         if (request.getPin() == null ||
-                request.getPin().length() != 6) {
+                !request.getPin().matches("\\d{6}")) {
 
             throw new IllegalArgumentException(
                     "Please enter your 6-digit PIN"
@@ -126,11 +132,36 @@ public class QRPaymentService {
 
 
         // ========================================
-        // 7. CHECK BALANCE
+        // 7. FIND PRIMARY BANK ACCOUNT
         // ========================================
 
-        if (user.getBalance()
-                .compareTo(request.getAmount()) < 0) {
+        BankAccount account =
+                bankAccountRepository
+                        .findByUserAndPrimaryAccount(user, true)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Primary bank account not found"
+                                ));
+
+
+        // ========================================
+        // 8. GET BANK ACCOUNT BALANCE
+        // ========================================
+
+        BigDecimal currentBalance =
+                account.getBalance();
+
+        if (currentBalance == null) {
+            currentBalance = BigDecimal.ZERO;
+        }
+
+
+        // ========================================
+        // 9. CHECK SUFFICIENT BALANCE
+        // ========================================
+
+        if (currentBalance.compareTo(
+                request.getAmount()) < 0) {
 
             throw new IllegalArgumentException(
                     "Insufficient balance"
@@ -139,24 +170,26 @@ public class QRPaymentService {
 
 
         // ========================================
-        // 8. DEDUCT BALANCE
+        // 10. DEDUCT FROM BANK ACCOUNT
         // ========================================
 
-        user.setBalance(
-                user.getBalance()
-                        .subtract(request.getAmount())
-        );
+        BigDecimal newBalance =
+                currentBalance.subtract(
+                        request.getAmount()
+                );
 
-
-        // ========================================
-        // 9. SAVE USER
-        // ========================================
-
-        userRepository.save(user);
+        account.setBalance(newBalance);
 
 
         // ========================================
-        // 10. CREATE TRANSACTION
+        // 11. SAVE BANK ACCOUNT
+        // ========================================
+
+        bankAccountRepository.save(account);
+
+
+        // ========================================
+        // 12. CREATE QR TRANSACTION
         // ========================================
 
         Transaction transaction =
@@ -170,7 +203,7 @@ public class QRPaymentService {
 
 
         // ========================================
-        // 11. SAVE TRANSACTION
+        // 13. SAVE TRANSACTION
         // ========================================
 
         return transactionRepository.save(transaction);

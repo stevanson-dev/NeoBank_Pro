@@ -13,7 +13,6 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
     // ========================================
     // USER
     // ========================================
@@ -21,7 +20,6 @@ public class Transaction {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-
 
     // ========================================
     // COMMON TRANSACTION DETAILS
@@ -42,6 +40,58 @@ public class Transaction {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    // ========================================
+    // TRANSACTION IDENTIFICATION
+    // ========================================
+
+    @Column(name = "transaction_id", unique = true, length = 50)
+    private String transactionId;
+
+    @Column(name = "transaction_number")
+    private Long transactionNumber;
+
+    // ========================================
+    // TRANSFER DETAILS
+    // ========================================
+
+    @Column(name = "recipient_name")
+    private String recipientName;
+
+    @Column(name = "recipient_account")
+    private String recipientAccount;
+
+    @Column(name = "recipient_bank")
+    private String recipientBank;
+
+    @Column(name = "recipient_ifsc")
+    private String recipientIfsc;
+
+    @Column(name = "sender_name")
+    private String senderName;
+
+    @Column(name = "sender_account")
+    private String senderAccount;
+
+    @Column(name = "sender_bank")
+    private String senderBank;
+
+    @Column(name = "sender_ifsc")
+    private String senderIfsc;
+
+    // ========================================
+    // OTHER DETAILS
+    // ========================================
+
+    @Column
+    private String category;
+
+    @Column
+    private String notes;
+
+    @Column
+    private String purpose;
+
+   
 
     // ========================================
     // BILL PAYMENT DETAILS
@@ -56,7 +106,6 @@ public class Transaction {
     @Column(name = "bill_account_number")
     private String billAccountNumber;
 
-
     // ========================================
     // DEFAULT CONSTRUCTOR
     // ========================================
@@ -64,10 +113,8 @@ public class Transaction {
     public Transaction() {
     }
 
-
     // ========================================
-    // COMMON TRANSACTION CONSTRUCTOR
-    // Deposit / Withdraw / Transfer
+    // COMMON CONSTRUCTOR
     // ========================================
 
     public Transaction(
@@ -85,9 +132,8 @@ public class Transaction {
         this.createdAt = LocalDateTime.now();
     }
 
-
     // ========================================
-    // BILL PAYMENT CONSTRUCTOR
+    // BILL CONSTRUCTOR
     // ========================================
 
     public Transaction(
@@ -112,7 +158,6 @@ public class Transaction {
         this.billAccountNumber = billAccountNumber;
     }
 
-
     // ========================================
     // GETTERS / SETTERS
     // ========================================
@@ -125,7 +170,6 @@ public class Transaction {
         this.id = id;
     }
 
-
     public User getUser() {
         return user;
     }
@@ -133,7 +177,6 @@ public class Transaction {
     public void setUser(User user) {
         this.user = user;
     }
-
 
     public BigDecimal getAmount() {
         return amount;
@@ -143,7 +186,6 @@ public class Transaction {
         this.amount = amount;
     }
 
-
     public String getType() {
         return type;
     }
@@ -151,7 +193,6 @@ public class Transaction {
     public void setType(String type) {
         this.type = type;
     }
-
 
     public String getMethod() {
         return method;
@@ -161,7 +202,6 @@ public class Transaction {
         this.method = method;
     }
 
-
     public String getStatus() {
         return status;
     }
@@ -169,7 +209,6 @@ public class Transaction {
     public void setStatus(String status) {
         this.status = status;
     }
-
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -179,10 +218,110 @@ public class Transaction {
         this.createdAt = createdAt;
     }
 
+    public String getTransactionId() {
+        return transactionId;
+    }
 
-    // ========================================
-    // BILL GETTERS / SETTERS
-    // ========================================
+    public void setTransactionId(String transactionId) {
+        this.transactionId = transactionId;
+    }
+
+    public Long getTransactionNumber() {
+        return transactionNumber;
+    }
+
+    public void setTransactionNumber(Long transactionNumber) {
+        this.transactionNumber = transactionNumber;
+    }
+
+    public String getRecipientName() {
+        return recipientName;
+    }
+
+    public void setRecipientName(String recipientName) {
+        this.recipientName = recipientName;
+    }
+
+    public String getRecipientAccount() {
+        return recipientAccount;
+    }
+
+    public void setRecipientAccount(String recipientAccount) {
+        this.recipientAccount = recipientAccount;
+    }
+
+    public String getRecipientBank() {
+        return recipientBank;
+    }
+
+    public void setRecipientBank(String recipientBank) {
+        this.recipientBank = recipientBank;
+    }
+
+    public String getRecipientIfsc() {
+        return recipientIfsc;
+    }
+
+    public void setRecipientIfsc(String recipientIfsc) {
+        this.recipientIfsc = recipientIfsc;
+    }
+
+    public String getSenderName() {
+        return senderName;
+    }
+
+    public void setSenderName(String senderName) {
+        this.senderName = senderName;
+    }
+
+    public String getSenderAccount() {
+        return senderAccount;
+    }
+
+    public void setSenderAccount(String senderAccount) {
+        this.senderAccount = senderAccount;
+    }
+
+    public String getSenderBank() {
+        return senderBank;
+    }
+
+    public void setSenderBank(String senderBank) {
+        this.senderBank = senderBank;
+    }
+
+    public String getSenderIfsc() {
+        return senderIfsc;
+    }
+
+    public void setSenderIfsc(String senderIfsc) {
+        this.senderIfsc = senderIfsc;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
+
+    public String getPurpose() {
+        return purpose;
+    }
+
+    public void setPurpose(String purpose) {
+        this.purpose = purpose;
+    }
+
 
     public String getBillCategory() {
         return billCategory;
@@ -192,7 +331,6 @@ public class Transaction {
         this.billCategory = billCategory;
     }
 
-
     public String getBillProvider() {
         return billProvider;
     }
@@ -201,14 +339,11 @@ public class Transaction {
         this.billProvider = billProvider;
     }
 
-
     public String getBillAccountNumber() {
         return billAccountNumber;
     }
 
-    public void setBillAccountNumber(
-            String billAccountNumber) {
-
+    public void setBillAccountNumber(String billAccountNumber) {
         this.billAccountNumber = billAccountNumber;
     }
 }

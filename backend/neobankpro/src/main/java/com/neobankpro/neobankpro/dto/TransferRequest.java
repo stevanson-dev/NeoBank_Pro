@@ -10,7 +10,10 @@ import java.math.BigDecimal;
 public class TransferRequest {
 
     @NotNull(message = "Amount is required")
-    @DecimalMin(value = "0.01", message = "Transfer amount must be greater than 0")
+    @DecimalMin(
+        value = "0.01",
+        message = "Transfer amount must be greater than 0"
+    )
     private BigDecimal amount;
 
     @NotBlank(message = "Recipient name is required")
@@ -20,6 +23,14 @@ public class TransferRequest {
     private String recipientAccount;
 
     private String recipientBank;
+
+    private String ifsc;
+
+    private String accountType;
+
+    private String purpose;
+
+    private String notes;
 
     @NotBlank(message = "Transfer method is required")
     private String method;
@@ -64,6 +75,38 @@ public class TransferRequest {
 
     public void setRecipientBank(String recipientBank) {
         this.recipientBank = recipientBank;
+    }
+
+    public String getIfsc() {
+        return ifsc;
+    }
+
+    public void setIfsc(String ifsc) {
+        this.ifsc = ifsc;
+    }
+
+    public String getAccountType() {
+        return accountType;
+    }
+
+    public void setAccountType(String accountType) {
+        this.accountType = accountType;
+    }
+
+    public String getPurpose() {
+        return purpose;
+    }
+
+    public void setPurpose(String purpose) {
+        this.purpose = purpose;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
     }
 
     public String getMethod() {
