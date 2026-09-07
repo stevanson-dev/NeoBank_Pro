@@ -35,6 +35,7 @@ import PaymentProcessing from "../pages/PaymentProcessing";
 import PinSecurity from "../pages/PinSecurity";
 import SetPin from "../pages/SetPin";
 import ChangePin from "../pages/ChangePin";
+import PayWithCard from "../pages/PayWithCard";
 
 
 
@@ -95,6 +96,7 @@ import AdminProtectedRoute from "../components/Admin/AdminProtectedRoute";
             <Route path="/pin-security" element={<PinSecurity />} />
             <Route path="/set-pin" element={<SetPin />} />
             <Route path="/change-pin" element={<ChangePin />} />
+            <Route path="/pay-with-card" element={<PayWithCard />} /> 
 
 
             

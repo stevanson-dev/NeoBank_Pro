@@ -21,17 +21,20 @@ public class WithdrawService {
     private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TransactionIdGenerator transactionIdGenerator;
 
     public WithdrawService(
             UserRepository userRepository,
             BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            TransactionIdGenerator transactionIdGenerator) {
 
         this.userRepository = userRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
+        this.transactionIdGenerator = transactionIdGenerator;
     }
 
     @Transactional
@@ -92,7 +95,8 @@ public class WithdrawService {
         // ==========================================
 
         if (request.getAmount() == null ||
-                request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                request.getAmount()
+                        .compareTo(BigDecimal.ZERO) <= 0) {
 
             throw new IllegalArgumentException(
                     "Invalid withdrawal amount"
@@ -106,7 +110,10 @@ public class WithdrawService {
 
         BankAccount account =
                 bankAccountRepository
-                        .findByUserAndPrimaryAccount(user, true)
+                        .findByUserAndPrimaryAccount(
+                                user,
+                                true
+                        )
                         .orElseThrow(() ->
                                 new RuntimeException(
                                         "Primary bank account not found"
@@ -172,9 +179,25 @@ public class WithdrawService {
 
 
         // ==========================================
-        // 11. SAVE TRANSACTION
+        // 11. GENERATE TRANSACTION ID
         // ==========================================
 
-        return transactionRepository.save(transaction);
+        String transactionId =
+                transactionIdGenerator.generate(
+                        "WITHDRAW"
+                );
+
+        transaction.setTransactionId(
+                transactionId
+        );
+
+
+        // ==========================================
+        // 12. SAVE TRANSACTION
+        // ==========================================
+
+        return transactionRepository.save(
+                transaction
+        );
     }
 }

@@ -13,16 +13,32 @@ export default function SpendingOverview({
   transactions = [],
 }) {
 
+  const currentMonth = new Date().getMonth();
+const currentYear = new Date().getFullYear();
+
+const monthlyTransactions = transactions.filter((transaction) => {
+  if (!transaction.createdAt) return false;
+
+  const date = new Date(transaction.createdAt);
+
+  return (
+    date.getMonth() === currentMonth &&
+    date.getFullYear() === currentYear
+  );
+});
+
   // --------------------------------
-  // Get expense transactions
+  // Get expense transactions this month
   // --------------------------------
 
-  const expenseTransactions = transactions.filter(
-    (transaction) =>
-      transaction.type === "WITHDRAW" ||
-       transaction.type === "TRANSFER" ||
-      transaction.type === "BILL_PAYMENT"
-  );
+  const expenseTransactions = monthlyTransactions.filter(
+  (transaction) =>
+    transaction.type === "WITHDRAW" ||
+    transaction.type === "TRANSFER" ||
+    transaction.type === "BILL_PAYMENT" ||
+    transaction.type === "QR_PAYMENT" ||
+    transaction.type === "CARD_PAYMENT"
+);
 
 
   // --------------------------------
@@ -52,6 +68,14 @@ export default function SpendingOverview({
         if (transaction.type === "BILL_PAYMENT") {
       category = "Pay Bills";
     }
+
+    if (transaction.type === "CARD_PAYMENT") {
+  category = "Card Payment";
+}
+
+    if (transaction.type === "QR_PAYMENT") {
+  category = "QR Payment";
+}
 
     category =
       category.charAt(0).toUpperCase() +

@@ -39,8 +39,13 @@ public class DepositController {
                 Map.of(
                         "success", true,
                         "message", "Deposit successful",
-                        "transactionId", transaction.getId(),
-                        "amount", transaction.getAmount()
+
+                        // Generated DEP-XXXXXXX ID
+                        "transactionId",
+                        transaction.getTransactionId(),
+
+                        "amount",
+                        transaction.getAmount()
                 )
         );
     }

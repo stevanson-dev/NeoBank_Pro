@@ -41,12 +41,29 @@ public class TransferController {
                     Map.of(
                             "success", true,
                             "message", "Transfer successful",
-                            "transactionId", transaction.getId(),
-                            "amount", transaction.getAmount(),
-                            "type", transaction.getType(),
-                            "method", transaction.getMethod(),
-                            "status", transaction.getStatus(),
-                            "createdAt", transaction.getCreatedAt()
+
+                            // ==========================================
+                            // TRANSACTION ID
+                            // ==========================================
+                            // Return generated TRF-XXXXXXX ID
+                            // instead of database numeric ID (96, 97...)
+                            "transactionId",
+                            transaction.getTransactionId(),
+
+                            "amount",
+                            transaction.getAmount(),
+
+                            "type",
+                            transaction.getType(),
+
+                            "method",
+                            transaction.getMethod(),
+
+                            "status",
+                            transaction.getStatus(),
+
+                            "createdAt",
+                            transaction.getCreatedAt()
                     )
             );
 

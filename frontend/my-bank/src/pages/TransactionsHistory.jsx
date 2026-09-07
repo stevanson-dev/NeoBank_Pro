@@ -132,7 +132,8 @@ export default function TransactionHistory() {
         transaction.type === "WITHDRAW" ||
         transaction.type === "TRANSFER" ||
         transaction.type === "BILL_PAYMENT" ||
-        transaction.type === "QR_PAYMENT"
+        transaction.type === "QR_PAYMENT" ||
+        transaction.type === "CARD_PAYMENT"
     )
     .reduce(
       (total, transaction) =>
@@ -365,7 +366,7 @@ export default function TransactionHistory() {
 
           {/* EXPORT */}
 
-          <ExportButtons />
+          <ExportButtons transactions={transactions} />
 
           {/* FILTERS */}
 

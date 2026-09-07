@@ -21,17 +21,20 @@ public class BillService {
     private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TransactionIdGenerator transactionIdGenerator;
 
     public BillService(
             UserRepository userRepository,
             BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            TransactionIdGenerator transactionIdGenerator) {
 
         this.userRepository = userRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
+        this.transactionIdGenerator = transactionIdGenerator;
     }
 
     @Transactional
@@ -92,7 +95,8 @@ public class BillService {
         // ========================================
 
         if (request.getAmount() == null ||
-                request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                request.getAmount()
+                        .compareTo(BigDecimal.ZERO) <= 0) {
 
             throw new IllegalArgumentException(
                     "Invalid bill amount"
@@ -145,7 +149,10 @@ public class BillService {
 
         BankAccount account =
                 bankAccountRepository
-                        .findByUserAndPrimaryAccount(user, true)
+                        .findByUserAndPrimaryAccount(
+                                user,
+                                true
+                        )
                         .orElseThrow(() ->
                                 new RuntimeException(
                                         "Primary bank account not found"
@@ -214,9 +221,25 @@ public class BillService {
 
 
         // ========================================
-        // 14. SAVE TRANSACTION
+        // 14. GENERATE TRANSACTION ID
         // ========================================
 
-        return transactionRepository.save(transaction);
+        String transactionId =
+                transactionIdGenerator.generate(
+                        "BILL_PAYMENT"
+                );
+
+        transaction.setTransactionId(
+                transactionId
+        );
+
+
+        // ========================================
+        // 15. SAVE TRANSACTION
+        // ========================================
+
+        return transactionRepository.save(
+                transaction
+        );
     }
 }

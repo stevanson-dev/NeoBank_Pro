@@ -21,17 +21,20 @@ public class QRPaymentService {
     private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TransactionIdGenerator transactionIdGenerator;
 
     public QRPaymentService(
             UserRepository userRepository,
             BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            TransactionIdGenerator transactionIdGenerator) {
 
         this.userRepository = userRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
+        this.transactionIdGenerator = transactionIdGenerator;
     }
 
     @Transactional
@@ -137,7 +140,10 @@ public class QRPaymentService {
 
         BankAccount account =
                 bankAccountRepository
-                        .findByUserAndPrimaryAccount(user, true)
+                        .findByUserAndPrimaryAccount(
+                                user,
+                                true
+                        )
                         .orElseThrow(() ->
                                 new RuntimeException(
                                         "Primary bank account not found"
@@ -203,9 +209,25 @@ public class QRPaymentService {
 
 
         // ========================================
-        // 13. SAVE TRANSACTION
+        // 13. GENERATE TRANSACTION ID
         // ========================================
 
-        return transactionRepository.save(transaction);
+        String transactionId =
+                transactionIdGenerator.generate(
+                        "QR_PAYMENT"
+                );
+
+        transaction.setTransactionId(
+                transactionId
+        );
+
+
+        // ========================================
+        // 14. SAVE TRANSACTION
+        // ========================================
+
+        return transactionRepository.save(
+                transaction
+        );
     }
 }

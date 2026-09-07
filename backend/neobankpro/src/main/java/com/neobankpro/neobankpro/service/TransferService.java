@@ -21,17 +21,20 @@ public class TransferService {
     private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TransactionIdGenerator transactionIdGenerator;
 
     public TransferService(
             UserRepository userRepository,
             BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            TransactionIdGenerator transactionIdGenerator) {
 
         this.userRepository = userRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
+        this.transactionIdGenerator = transactionIdGenerator;
     }
 
     @Transactional
@@ -235,6 +238,25 @@ public class TransferService {
                         "SUCCESS"
                 );
 
+
+        // ==========================================
+        // 15. GENERATE TRANSACTION ID
+        // ==========================================
+
+        String transactionId =
+                transactionIdGenerator.generate(
+                        "TRANSFER"
+                );
+
+        transaction.setTransactionId(
+                transactionId
+        );
+
+
+        // ==========================================
+        // 16. SET RECIPIENT DETAILS
+        // ==========================================
+
         transaction.setRecipientName(
                 request.getRecipientName()
         );
@@ -249,9 +271,11 @@ public class TransferService {
 
 
         // ==========================================
-        // 15. SAVE TRANSACTION
+        // 17. SAVE TRANSACTION
         // ==========================================
 
-        return transactionRepository.save(transaction);
+        return transactionRepository.save(
+                transaction
+        );
     }
 }

@@ -12,7 +12,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
 import java.math.BigDecimal;
 
 @Service
@@ -22,17 +21,20 @@ public class DepositService {
     private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TransactionIdGenerator transactionIdGenerator;
 
     public DepositService(
             UserRepository userRepository,
             BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            TransactionIdGenerator transactionIdGenerator) {
 
         this.userRepository = userRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
+        this.transactionIdGenerator = transactionIdGenerator;
     }
 
     @Transactional
@@ -106,13 +108,16 @@ public class DepositService {
         // 5. GET PRIMARY BANK ACCOUNT
         // ==========================================
 
-       BankAccount account =
-        bankAccountRepository
-                .findByUserAndPrimaryAccount(user, true)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Primary bank account not found"
-                        ));
+        BankAccount account =
+                bankAccountRepository
+                        .findByUserAndPrimaryAccount(
+                                user,
+                                true
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Primary bank account not found"
+                                ));
 
 
         // ==========================================
@@ -161,9 +166,25 @@ public class DepositService {
 
 
         // ==========================================
-        // 10. SAVE TRANSACTION
+        // 10. GENERATE TRANSACTION ID
         // ==========================================
 
-        return transactionRepository.save(transaction);
+        String transactionId =
+                transactionIdGenerator.generate(
+                        "DEPOSIT"
+                );
+
+        transaction.setTransactionId(
+                transactionId
+        );
+
+
+        // ==========================================
+        // 11. SAVE TRANSACTION
+        // ==========================================
+
+        return transactionRepository.save(
+                transaction
+        );
     }
 }

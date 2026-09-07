@@ -1134,7 +1134,7 @@ export default function Transfer() {
 
   return (
 
-    <div className="min-h-screen bg-linear-to-br from-[#07162F] via-[#0A2245] to-[#102E5B] text-white">
+   <div className="min-h-screen w-full overflow-x-hidden bg-linear-to-br from-[#07162F] via-[#0A2245] to-[#102E5B] text-white">
 
       {/* ==============================================
           HEADER

@@ -114,7 +114,8 @@ function Dashboard() {
         transaction.type === "WITHDRAW" ||
         transaction.type === "TRANSFER" ||
         transaction.type === "BILL_PAYMENT" ||
-        transaction.type === "QR_PAYMENT"
+        transaction.type === "QR_PAYMENT" ||
+        transaction.type === "CARD_PAYMENT"
     )
     .reduce(
       (total, transaction) =>

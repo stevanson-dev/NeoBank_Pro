@@ -11,7 +11,9 @@ export default function FilterBar({
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-8">
 
-      {/* Search */}
+      {/* =========================================================
+          SEARCH
+      ========================================================= */}
 
       <div className="md:col-span-2 relative">
 
@@ -28,7 +30,9 @@ export default function FilterBar({
       </div>
 
 
-      {/* Category */}
+      {/* =========================================================
+          CATEGORY
+      ========================================================= */}
 
       <select
         value={category}
@@ -36,26 +40,47 @@ export default function FilterBar({
         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white outline-none"
       >
 
+        {/* ALL */}
         <option value="ALL" className="text-black">
           All Categories
         </option>
 
+        {/* DEPOSIT */}
         <option value="DEPOSIT" className="text-black">
           Deposit
         </option>
 
+        {/* WITHDRAW */}
         <option value="WITHDRAW" className="text-black">
           Withdraw
         </option>
 
+        {/* TRANSFER */}
         <option value="TRANSFER" className="text-black">
           Transfer
+        </option>
+
+        {/* BILL PAYMENT */}
+        <option value="BILL_PAYMENT" className="text-black">
+          Bill Payment
+        </option>
+
+        {/* QR PAYMENT */}
+        <option value="QR_PAYMENT" className="text-black">
+          QR Payment
+        </option>
+
+        {/* CARD PAYMENT */}
+        <option value="CARD_PAYMENT" className="text-black">
+          Card Payment
         </option>
 
       </select>
 
 
-      {/* Status */}
+      {/* =========================================================
+          STATUS
+      ========================================================= */}
 
       <select
         value={status}
@@ -63,18 +88,22 @@ export default function FilterBar({
         className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white outline-none"
       >
 
+        {/* ALL STATUS */}
         <option value="ALL" className="text-black">
           All Status
         </option>
 
+        {/* SUCCESS */}
         <option value="SUCCESS" className="text-black">
           Success
         </option>
 
+        {/* PENDING */}
         <option value="PENDING" className="text-black">
           Pending
         </option>
 
+        {/* FAILED */}
         <option value="FAILED" className="text-black">
           Failed
         </option>
