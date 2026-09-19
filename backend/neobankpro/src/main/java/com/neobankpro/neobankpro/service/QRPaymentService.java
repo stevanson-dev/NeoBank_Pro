@@ -22,19 +22,22 @@ public class QRPaymentService {
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
     private final TransactionIdGenerator transactionIdGenerator;
+    private final NotificationService notificationService;
 
     public QRPaymentService(
             UserRepository userRepository,
             BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
             PasswordEncoder passwordEncoder,
-            TransactionIdGenerator transactionIdGenerator) {
+            TransactionIdGenerator transactionIdGenerator,
+            NotificationService notificationService) {
 
         this.userRepository = userRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
         this.transactionIdGenerator = transactionIdGenerator;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -226,8 +229,31 @@ public class QRPaymentService {
         // 14. SAVE TRANSACTION
         // ========================================
 
-        return transactionRepository.save(
-                transaction
+        Transaction savedTransaction =
+                transactionRepository.save(
+                        transaction
+                );
+
+
+        // ========================================
+        // 15. CREATE NOTIFICATION
+        // ========================================
+
+        notificationService.createTransactionNotification(
+                user,
+                "QR Payment Successful",
+                "₹" + request.getAmount()
+                        .stripTrailingZeros()
+                        .toPlainString()
+                        + " was paid successfully via UPI.",
+                savedTransaction
         );
+
+
+        // ========================================
+        // 16. RETURN TRANSACTION
+        // ========================================
+
+        return savedTransaction;
     }
 }

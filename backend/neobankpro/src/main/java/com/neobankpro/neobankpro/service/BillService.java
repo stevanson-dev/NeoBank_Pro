@@ -22,19 +22,22 @@ public class BillService {
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
     private final TransactionIdGenerator transactionIdGenerator;
+    private final NotificationService notificationService;
 
     public BillService(
             UserRepository userRepository,
             BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
             PasswordEncoder passwordEncoder,
-            TransactionIdGenerator transactionIdGenerator) {
+            TransactionIdGenerator transactionIdGenerator,
+            NotificationService notificationService) {
 
         this.userRepository = userRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
         this.transactionIdGenerator = transactionIdGenerator;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -238,8 +241,33 @@ public class BillService {
         // 15. SAVE TRANSACTION
         // ========================================
 
-        return transactionRepository.save(
-                transaction
+        Transaction savedTransaction =
+                transactionRepository.save(
+                        transaction
+                );
+
+
+        // ========================================
+        // 16. CREATE NOTIFICATION
+        // ========================================
+
+        notificationService.createTransactionNotification(
+                user,
+                "Bill Payment Successful",
+                "₹" + request.getAmount()
+                        .stripTrailingZeros()
+                        .toPlainString()
+                        + " bill payment for "
+                        + request.getProvider()
+                        + " was successful.",
+                savedTransaction
         );
+
+
+        // ========================================
+        // 17. RETURN TRANSACTION
+        // ========================================
+
+        return savedTransaction;
     }
 }

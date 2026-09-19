@@ -116,23 +116,25 @@ public class SecurityConfig {
                 // ----------------------------------
                 // AUTHORIZATION
                 // ----------------------------------
-                .authorizeHttpRequests(auth -> auth
+               .authorizeHttpRequests(auth -> auth
+    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Browser preflight
-                        .requestMatchers(
-                                HttpMethod.OPTIONS,
-                                "/**"
-                        ).permitAll()
+    .requestMatchers(
+        "/api/auth/register",
+        "/api/auth/login"
+    ).permitAll()
 
-                        // Public authentication APIs
-                        .requestMatchers(
-                                "/api/auth/register",
-                                "/api/auth/login"
-                        ).permitAll()
+    /*
+     * WebSocket HTTP handshake.
+     *
+     * JWT authentication happens separately
+     * during STOMP CONNECT through
+     * WebSocketJwtInterceptor.
+     */
+    .requestMatchers("/ws/**").permitAll()
 
-                        // Everything else requires JWT
-                        .anyRequest().authenticated()
-                )
+    .anyRequest().authenticated()
+)
 
                 // ----------------------------------
                 // JWT FILTER

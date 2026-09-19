@@ -22,19 +22,22 @@ public class TransferService {
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
     private final TransactionIdGenerator transactionIdGenerator;
+    private final NotificationService notificationService;
 
     public TransferService(
             UserRepository userRepository,
             BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
             PasswordEncoder passwordEncoder,
-            TransactionIdGenerator transactionIdGenerator) {
+            TransactionIdGenerator transactionIdGenerator,
+            NotificationService notificationService) {
 
         this.userRepository = userRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
         this.transactionIdGenerator = transactionIdGenerator;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -274,8 +277,52 @@ public class TransferService {
         // 17. SAVE TRANSACTION
         // ==========================================
 
-        return transactionRepository.save(
-                transaction
+        Transaction savedTransaction =
+                transactionRepository.save(transaction);
+
+
+        // ==========================================
+        // 18. CREATE SENDER NOTIFICATION
+        // ==========================================
+
+        String formattedAmount =
+                "₹" + request.getAmount()
+                        .stripTrailingZeros()
+                        .toPlainString();
+
+        notificationService.createTransactionNotification(
+                sender,
+                "Money Transfer",
+                formattedAmount
+                        + " was transferred successfully to "
+                        + request.getRecipientName()
+                        + ".",
+                savedTransaction
         );
+
+
+        // ==========================================
+        // 19. CREATE RECIPIENT NOTIFICATION
+        // ==========================================
+
+        User recipient =
+                recipientAccount.getUser();
+
+        notificationService.createTransactionNotification(
+                recipient,
+                "Money Received",
+                formattedAmount
+                        + " was received from "
+                        + sender.getFullName()
+                        + ".",
+                savedTransaction
+        );
+
+
+        // ==========================================
+        // 20. RETURN TRANSACTION
+        // ==========================================
+
+        return savedTransaction;
     }
 }

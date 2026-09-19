@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -8,68 +8,132 @@ import {
   FaShieldAlt,
   FaGift,
   FaCheckCircle,
-  FaTrash
+  FaTrash,
+  FaCog,
 } from "react-icons/fa";
+
+import { Client } from "@stomp/stompjs";
+import axios from "axios";
 
 import GlassCard from "../components/Transfer Histroy Dash/GlassCard";
 
 
-const notificationsData = [
-  {
-    id: 1,
-    type: "Transactions",
-    title: "Money Transfer",
-    message: "₹15,000 was transferred successfully.",
-    time: "5 minutes ago",
-    icon: <FaExchangeAlt />,
-    color: "text-green-400",
-    unread: true,
-  },
+const API_URL = "http://localhost:8080/api";
 
-  {
-    id: 2,
-    type: "Transactions",
-    title: "Salary Credited",
-    message: "₹50,000 has been credited to your account.",
-    time: "Yesterday",
-    icon: <FaCheckCircle />,
-    color: "text-cyan-400",
-    unread: true,
-  },
 
-  {
-    id: 3,
-    type: "Security",
-    title: "Security Alert",
-    message: "A new login was detected on your account.",
-    time: "2 days ago",
-    icon: <FaShieldAlt />,
-    color: "text-red-400",
-    unread: true,
-  },
+const getNotificationType = (type) => {
+  switch (type) {
+    case "TRANSACTION":
+      return "Transactions";
 
-  {
-    id: 4,
-    type: "Offers",
-    title: "Special Offer",
-    message: "You have a new NeoBank Pro offer.",
-    time: "3 days ago",
-    icon: <FaGift />,
-    color: "text-yellow-400",
-    unread: false,
-  },
+    case "SECURITY":
+      return "Security";
 
-  {
-    id: 5,
-    type: "Transactions",
-    title: "Payment Successful",
-    message: "Your electricity bill payment was successful.",
-    time: "4 days ago",
-    icon: <FaCheckCircle />,
-    color: "text-green-400",
-    unread: false,
-  },
-];
+    case "OFFER":
+      return "Offers";
+
+    case "SYSTEM":
+      return "System";
+
+    default:
+      return "System";
+  }
+};
+
+
+const getNotificationIcon = (type) => {
+  switch (type) {
+    case "TRANSACTION":
+      return <FaExchangeAlt />;
+
+    case "SECURITY":
+      return <FaShieldAlt />;
+
+    case "OFFER":
+      return <FaGift />;
+
+    case "SYSTEM":
+      return <FaCog />;
+
+    default:
+      return <FaBell />;
+  }
+};
+
+
+const getNotificationColor = (type) => {
+  switch (type) {
+    case "TRANSACTION":
+      return "text-green-400";
+
+    case "SECURITY":
+      return "text-red-400";
+
+    case "OFFER":
+      return "text-yellow-400";
+
+    case "SYSTEM":
+      return "text-cyan-400";
+
+    default:
+      return "text-cyan-400";
+  }
+};
+
+
+const getRelativeTime = (dateString) => {
+
+  if (!dateString) {
+    return "";
+  }
+
+  const notificationDate = new Date(dateString);
+
+  if (Number.isNaN(notificationDate.getTime())) {
+    return "";
+  }
+
+  const now = new Date();
+
+  const difference =
+    Math.floor(
+      (now.getTime() - notificationDate.getTime()) / 1000
+    );
+
+  if (difference < 10) {
+    return "Just now";
+  }
+
+  if (difference < 60) {
+    return `${difference} seconds ago`;
+  }
+
+  const minutes = Math.floor(difference / 60);
+
+  if (minutes < 60) {
+    return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours < 24) {
+    return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+
+  if (days < 7) {
+    return `${days} day${days !== 1 ? "s" : ""} ago`;
+  }
+
+  const weeks = Math.floor(days / 7);
+
+  if (weeks < 5) {
+    return `${weeks} week${weeks !== 1 ? "s" : ""} ago`;
+  }
+
+  return notificationDate.toLocaleDateString();
+};
 
 
 export default function Notifications() {
@@ -78,56 +142,395 @@ export default function Notifications() {
 
   const [filter, setFilter] = useState("All");
 
-  const [notifications, setNotifications] =
-    useState(notificationsData);
+  const [notifications, setNotifications] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+
+  const [actionLoading, setActionLoading] = useState(false);
 
 
-  const filteredNotifications =
-    filter === "All"
-      ? notifications
-      : notifications.filter(
-          (item) => item.type === filter
-        );
+  /*
+   * -------------------------------------------------------
+   * Get JWT token
+   * -------------------------------------------------------
+   */
 
-        const unreadCount = notifications.filter(
-  (item) => item.unread
-).length;
+  const getToken = () => {
+    return localStorage.getItem("token");
+  };
 
 
-  const markAllAsRead = () => {
+  /*
+   * -------------------------------------------------------
+   * Axios headers
+   * -------------------------------------------------------
+   */
 
-    setNotifications(
-      notifications.map((item) => ({
-        ...item,
-        unread: false,
-      }))
-    );
+  const getAuthConfig = () => {
+
+    const token = getToken();
+
+    return {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
 
   };
 
 
-  const markAsRead = (id) => {
+  /*
+   * -------------------------------------------------------
+   * Load notifications from database
+   * -------------------------------------------------------
+   */
 
-    setNotifications(
-      notifications.map((item) =>
-        item.id === id
-          ? { ...item, unread: false }
-          : item
-      )
-    );
+  const fetchNotifications = async () => {
+
+    try {
+
+      setLoading(true);
+
+      const response = await axios.get(
+        `${API_URL}/notifications`,
+        getAuthConfig()
+      );
+
+      const data = Array.isArray(response.data)
+        ? response.data
+        : [];
+
+      setNotifications(data);
+
+    } catch (error) {
+
+      console.error(
+        "Failed to load notifications:",
+        error
+      );
+
+      setNotifications([]);
+
+    } finally {
+
+      setLoading(false);
+
+    }
 
   };
 
 
-  const deleteNotification = (id) => {
+  /*
+   * -------------------------------------------------------
+   * Initial notification loading
+   * -------------------------------------------------------
+   */
 
-    setNotifications(
-      notifications.filter(
-        (item) => item.id !== id
-      )
-    );
+  useEffect(() => {
+
+    fetchNotifications();
+
+  }, []);
+
+
+  /*
+   * -------------------------------------------------------
+   * Real-time WebSocket connection
+   * -------------------------------------------------------
+   */
+
+  useEffect(() => {
+
+    const token = getToken();
+
+    if (!token) {
+      return;
+    }
+
+
+    const client = new Client({
+
+      brokerURL: "ws://localhost:8080/ws",
+
+      connectHeaders: {
+        Authorization: `Bearer ${token}`,
+      },
+
+      reconnectDelay: 5000,
+
+      heartbeatIncoming: 10000,
+
+      heartbeatOutgoing: 10000,
+
+      debug: () => {
+        // Keep console clean.
+      },
+
+    });
+
+
+    client.onConnect = () => {
+
+      console.log(
+        "Notification WebSocket connected."
+      );
+
+
+      client.subscribe(
+        "/user/queue/notifications",
+        (message) => {
+
+          try {
+
+            const incomingNotification =
+              JSON.parse(message.body);
+
+
+            setNotifications((current) => {
+
+              /*
+               * Prevent duplicate notifications
+               */
+
+              const alreadyExists =
+                current.some(
+                  (item) =>
+                    item.id ===
+                    incomingNotification.id
+                );
+
+
+              if (alreadyExists) {
+                return current;
+              }
+
+
+              /*
+               * New notification goes to top
+               */
+
+              return [
+                incomingNotification,
+                ...current,
+              ];
+
+            });
+
+          } catch (error) {
+
+            console.error(
+              "Failed to process notification:",
+              error
+            );
+
+          }
+
+        }
+      );
+
+    };
+
+
+    client.onStompError = (frame) => {
+
+      console.error(
+        "Notification WebSocket error:",
+        frame
+      );
+
+    };
+
+
+    client.onWebSocketError = (error) => {
+
+      console.error(
+        "Notification WebSocket connection error:",
+        error
+      );
+
+    };
+
+
+    client.activate();
+
+
+    return () => {
+
+      if (client.active) {
+        client.deactivate();
+      }
+
+    };
+
+  }, []);
+
+
+  /*
+   * -------------------------------------------------------
+   * Mark single notification as read
+   * -------------------------------------------------------
+   */
+
+  const markAsRead = async (id) => {
+
+    try {
+
+      await axios.patch(
+        `${API_URL}/notifications/${id}/read`,
+        {},
+        getAuthConfig()
+      );
+
+
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                read: true,
+              }
+            : item
+        )
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Failed to mark notification as read:",
+        error
+      );
+
+    }
 
   };
+
+
+  /*
+   * -------------------------------------------------------
+   * Mark all notifications as read
+   * -------------------------------------------------------
+   */
+
+  const markAllAsRead = async () => {
+
+    try {
+
+      setActionLoading(true);
+
+
+      await axios.patch(
+        `${API_URL}/notifications/read-all`,
+        {},
+        getAuthConfig()
+      );
+
+
+      setNotifications((current) =>
+        current.map((item) => ({
+          ...item,
+          read: true,
+        }))
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Failed to mark all notifications as read:",
+        error
+      );
+
+    } finally {
+
+      setActionLoading(false);
+
+    }
+
+  };
+
+
+  /*
+   * -------------------------------------------------------
+   * Delete notification
+   * -------------------------------------------------------
+   */
+
+  const deleteNotification = async (id) => {
+
+    try {
+
+      await axios.delete(
+        `${API_URL}/notifications/${id}`,
+        getAuthConfig()
+      );
+
+
+      setNotifications((current) =>
+        current.filter(
+          (item) => item.id !== id
+        )
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Failed to delete notification:",
+        error
+      );
+
+    }
+
+  };
+
+
+  /*
+   * -------------------------------------------------------
+   * Filter notifications
+   * -------------------------------------------------------
+   */
+
+  const filteredNotifications = useMemo(() => {
+
+    if (filter === "All") {
+      return notifications;
+    }
+
+
+    return notifications.filter(
+      (item) =>
+        getNotificationType(item.type) === filter
+    );
+
+  }, [notifications, filter]);
+
+
+  /*
+   * -------------------------------------------------------
+   * Unread count
+   * -------------------------------------------------------
+   */
+
+  const unreadCount = useMemo(() => {
+
+    return notifications.filter(
+      (item) => !item.read
+    ).length;
+
+  }, [notifications]);
+
+
+  /*
+   * -------------------------------------------------------
+   * Notification filters
+   * -------------------------------------------------------
+   */
+
+  const filters = [
+    "All",
+    "Transactions",
+    "Security",
+    "Offers",
+    "System",
+  ];
 
 
   return (
@@ -139,9 +542,7 @@ export default function Notifications() {
 
       <div className="max-w-7xl mx-auto px-6 pt-8">
 
-
         <div className="flex items-center justify-between">
-
 
           <div className="flex items-center gap-4">
 
@@ -154,55 +555,60 @@ export default function Notifications() {
             </button>
 
 
-           <div>
+            <div>
 
-  <h1 className="text-3xl font-bold">
-    Notifications
-  </h1>
+              <h1 className="text-3xl font-bold">
+                Notifications
+              </h1>
 
-  <p className="text-gray-400 mt-1">
-    You have {unreadCount} unread notification
-    {unreadCount !== 1 ? "s" : ""}
-  </p>
 
-</div>
-</div>
-        
-        
+              <p className="text-gray-400 mt-1">
+
+                You have {unreadCount} unread notification
+                {unreadCount !== 1 ? "s" : ""}
+
+              </p>
+
+            </div>
+
+          </div>
 
 
           <button
             onClick={markAllAsRead}
-            className="flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl transition"
+            disabled={
+              actionLoading ||
+              unreadCount === 0
+            }
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl transition ${
+              actionLoading ||
+              unreadCount === 0
+                ? "bg-blue-600/40 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
+
             <FaCheckCircle />
 
-            Mark all as read
+            {actionLoading
+              ? "Updating..."
+              : "Mark all as read"}
 
           </button>
 
 
         </div>
 
-
       </div>
-
 
 
       {/* Filters */}
 
       <div className="max-w-7xl mx-auto px-6 mt-8">
 
-
         <div className="flex flex-wrap gap-3">
 
-
-          {[
-            "All",
-            "Transactions",
-            "Security",
-            "Offers"
-          ].map((item) => (
+          {filters.map((item) => (
 
             <button
               key={item}
@@ -213,28 +619,45 @@ export default function Notifications() {
                   : "bg-white/10 text-gray-300 hover:bg-white/20"
               }`}
             >
+
               {item}
+
             </button>
 
           ))}
 
-
         </div>
 
-
       </div>
-
 
 
       {/* Notifications */}
 
       <div className="max-w-7xl mx-auto px-6 mt-8 pb-12">
 
-
         <div className="space-y-4">
 
 
-          {filteredNotifications.length === 0 ? (
+          {/* Loading */}
+
+          {loading ? (
+
+            <GlassCard className="p-10 text-center">
+
+              <FaBell
+                className="mx-auto text-blue-400 animate-pulse"
+                size={40}
+              />
+
+              <p className="text-gray-400 mt-4">
+                Loading notifications...
+              </p>
+
+            </GlassCard>
+
+          ) : filteredNotifications.length === 0 ? (
+
+            /* Empty */
 
             <GlassCard className="p-10 text-center">
 
@@ -251,111 +674,161 @@ export default function Notifications() {
 
           ) : (
 
-            filteredNotifications.map((item) => (
+            /* Notification List */
 
-              <GlassCard
-                key={item.id}
-                className={`p-5 transition ${
-                  item.unread
-                    ? "border border-blue-400/30"
-                    : ""
-                }`}
-              >
+            filteredNotifications.map((item) => {
 
-                <div className="flex items-center gap-4">
+              const type =
+                getNotificationType(item.type);
+
+              const icon =
+                getNotificationIcon(item.type);
+
+              const iconColor =
+                getNotificationColor(item.type);
 
 
-                  {/* Icon */}
+              return (
+
+                <GlassCard
+                  key={item.id}
+                  className={`p-5 transition ${
+                    !item.read
+                      ? "border border-blue-400/30"
+                      : ""
+                  }`}
+                >
 
                   <div
-                    className={`w-12 h-12 rounded-full bg-white/10 flex items-center justify-center ${item.color}`}
+                    onClick={() => {
+                      if (!item.read) {
+                        markAsRead(item.id);
+                      }
+                    }}
+                    className="flex items-center gap-4 cursor-pointer hover:bg-white/5 rounded-xl transition"
                   >
-                    {item.icon}
-                  </div>
 
 
+                    {/* Icon */}
 
-                  {/* Content */}
-
-                  <div className="flex-1">
-
-
-                    <div className="flex items-center gap-2">
-
-                      <h3 className="font-semibold text-lg">
-                        {item.title}
-                      </h3>
+                    <div
+                      className={`w-12 h-12 rounded-full bg-white/10 flex items-center justify-center ${iconColor}`}
+                    >
+                      {icon}
+                    </div>
 
 
-                      {item.unread && (
+                    {/* Content */}
 
-                        <span className="w-2 h-2 rounded-full bg-blue-400" />
+                    <div className="flex-1 min-w-0">
 
-                      )}
+
+                      <div className="flex items-center gap-2">
+
+                        <h3 className="font-semibold text-lg">
+                          {item.title}
+                        </h3>
+
+
+                        {!item.read && (
+
+                          <>
+                            <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
+
+                            <span className="text-xs text-blue-400 ml-2">
+                              Click to read
+                            </span>
+                          </>
+
+                        )}
+
+                      </div>
+
+
+                      <p className="text-gray-400 mt-1">
+                        {item.message}
+                      </p>
+
+
+                      <div className="flex items-center gap-3 mt-2">
+
+                        <p className="text-gray-500 text-sm">
+                          {getRelativeTime(item.createdAt)}
+                        </p>
+
+
+                        {item.transactionId && (
+
+                          <span className="text-xs text-gray-600">
+                            • {item.transactionId}
+                          </span>
+
+                        )}
+
+                      </div>
+
+
+                      {/* Type */}
+
+                      <p className="text-xs text-gray-600 mt-1">
+                        {type}
+                      </p>
 
                     </div>
 
 
-                    <p className="text-gray-400 mt-1">
-                      {item.message}
-                    </p>
+                    {/* Actions */}
+
+                    <div className="flex items-center gap-2">
 
 
-                    <p className="text-gray-500 text-sm mt-2">
-                      {item.time}
-                    </p>
+                      {!item.read && (
 
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markAsRead(item.id);
+                          }}
+                          className="p-3 rounded-xl bg-white/10 hover:bg-white/20 text-green-400 transition"
+                          title="Mark as read"
+                        >
+                          <FaCheckCircle />
+                        </button>
 
-                  </div>
+                      )}
 
-
-
-                  {/* Actions */}
-
-                  <div className="flex items-center gap-2">
-
-
-                    {item.unread && (
 
                       <button
-                        onClick={() => markAsRead(item.id)}
-                        className="p-3 rounded-xl bg-white/10 hover:bg-white/20 text-green-400"
-                        title="Mark as read"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(item.id);
+                        }}
+                        className="p-3 rounded-xl bg-white/10 hover:bg-red-500/20 text-red-400 transition"
+                        title="Delete"
                       >
-                        <FaCheckCircle />
+                        <FaTrash />
                       </button>
 
-                    )}
 
-
-                    <button
-                      onClick={() => deleteNotification(item.id)}
-                      className="p-3 rounded-xl bg-white/10 hover:bg-red-500/20 text-red-400"
-                      title="Delete"
-                    >
-                      <FaTrash />
-                    </button>
+                    </div>
 
 
                   </div>
 
+                </GlassCard>
 
-                </div>
+              );
 
-              </GlassCard>
-
-            ))
+            })
 
           )}
 
-
         </div>
 
-
       </div>
-
 
     </div>
 
   );
+
 }

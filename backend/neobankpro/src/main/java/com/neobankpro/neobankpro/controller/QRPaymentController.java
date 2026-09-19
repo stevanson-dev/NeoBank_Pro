@@ -60,7 +60,7 @@ public class QRPaymentController {
 
             response.put(
                     "transactionId",
-                    transaction.getId()
+                    transaction.getTransactionId()
             );
 
             response.put(

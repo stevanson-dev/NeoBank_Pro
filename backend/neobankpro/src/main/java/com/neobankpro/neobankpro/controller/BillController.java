@@ -58,7 +58,7 @@ public class BillController {
 
             response.put(
                     "transactionId",
-                    transaction.getId()
+                    transaction.getTransactionId()
             );
 
             response.put(

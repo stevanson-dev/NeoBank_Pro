@@ -39,7 +39,7 @@ public class WithdrawController {
                 Map.of(
                         "success", true,
                         "message", "Withdrawal successful",
-                        "transactionId", transaction.getId(),
+                        "transactionId", transaction.getTransactionId(),
                         "amount", transaction.getAmount()
                 )
         );

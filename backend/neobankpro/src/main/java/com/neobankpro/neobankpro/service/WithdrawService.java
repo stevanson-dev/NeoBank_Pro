@@ -22,19 +22,22 @@ public class WithdrawService {
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
     private final TransactionIdGenerator transactionIdGenerator;
+    private final NotificationService notificationService;
 
     public WithdrawService(
             UserRepository userRepository,
             BankAccountRepository bankAccountRepository,
             TransactionRepository transactionRepository,
             PasswordEncoder passwordEncoder,
-            TransactionIdGenerator transactionIdGenerator) {
+            TransactionIdGenerator transactionIdGenerator,
+            NotificationService notificationService) {
 
         this.userRepository = userRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
         this.transactionIdGenerator = transactionIdGenerator;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -196,8 +199,29 @@ public class WithdrawService {
         // 12. SAVE TRANSACTION
         // ==========================================
 
-        return transactionRepository.save(
-                transaction
+        Transaction savedTransaction =
+                transactionRepository.save(transaction);
+
+
+        // ==========================================
+        // 13. CREATE NOTIFICATION
+        // ==========================================
+
+        notificationService.createTransactionNotification(
+                user,
+                "Cash Withdrawal",
+                "₹" + request.getAmount()
+                        .stripTrailingZeros()
+                        .toPlainString()
+                        + " was withdrawn successfully from your account.",
+                savedTransaction
         );
+
+
+        // ==========================================
+        // 14. RETURN TRANSACTION
+        // ==========================================
+
+        return savedTransaction;
     }
 }

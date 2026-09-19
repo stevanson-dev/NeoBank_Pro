@@ -25,19 +25,22 @@ public class CardPaymentService {
     private final TransactionRepository transactionRepository;
     private final PasswordEncoder passwordEncoder;
     private final TransactionIdGenerator transactionIdGenerator;
+    private final NotificationService notificationService;
 
     public CardPaymentService(
             CardRepository cardRepository,
             CardPaymentRepository cardPaymentRepository,
             TransactionRepository transactionRepository,
             PasswordEncoder passwordEncoder,
-            TransactionIdGenerator transactionIdGenerator
+            TransactionIdGenerator transactionIdGenerator,
+            NotificationService notificationService
     ) {
         this.cardRepository = cardRepository;
         this.cardPaymentRepository = cardPaymentRepository;
         this.transactionRepository = transactionRepository;
         this.passwordEncoder = passwordEncoder;
         this.transactionIdGenerator = transactionIdGenerator;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -593,13 +596,31 @@ public class CardPaymentService {
                         + request.getMerchantName().trim()
         );
 
-        transactionRepository.save(
-                transaction
+        Transaction savedTransaction =
+                transactionRepository.save(
+                        transaction
+                );
+
+
+        // =========================================================
+        // 21. CREATE NOTIFICATION
+        // =========================================================
+
+        notificationService.createTransactionNotification(
+                user,
+                "Card Payment Successful",
+                "₹" + request.getAmount()
+                        .stripTrailingZeros()
+                        .toPlainString()
+                        + " payment was made at "
+                        + request.getMerchantName().trim()
+                        + ".",
+                savedTransaction
         );
 
 
         // =========================================================
-        // 21. MASK CARD NUMBER
+        // 22. MASK CARD NUMBER
         // =========================================================
 
         String cardNumber =
@@ -617,7 +638,7 @@ public class CardPaymentService {
 
 
         // =========================================================
-        // 22. RESPONSE
+        // 23. RESPONSE
         // =========================================================
 
         return new CardPaymentResponse(

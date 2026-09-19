@@ -297,8 +297,8 @@ export default function TransactionModal({
             </span>
 
             <span className="font-medium text-right">
-              #{transaction.transactionId}
-            </span>
+             {transaction.transactionId || "-"}
+             </span>
 
           </div>
 
